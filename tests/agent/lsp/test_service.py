@@ -45,7 +45,8 @@ def _install_mock_server(
         spawn_count["value"] += 1
         env = {"MOCK_LSP_SCRIPT": scripts[index]}
         return SpawnSpec(
-            command=[sys.executable, MOCK_SERVER],
+            # A venv launcher on Windows keeps the mock's stdout pipe open.
+            command=[sys._base_executable, MOCK_SERVER],
             workspace_root=root,
             cwd=root,
             env=env,
@@ -198,10 +199,11 @@ def test_service_replaces_client_after_reader_failure(
             reader_task = client._reader_task
             assert reader_task is not None
             await client.open_file(str(source), language_id="python")
-            await asyncio.wait_for(asyncio.shield(reader_task), timeout=3.0)
+            # Allow the Windows process-tree cleanup budget before replacing the client.
+            await asyncio.wait_for(asyncio.shield(reader_task), timeout=20.0)
             return client
 
-        first = svc._loop.run(_break_first_client(), timeout=5.0)
+        first = svc._loop.run(_break_first_client(), timeout=25.0)
         replacement = svc._loop.run(svc._get_or_spawn(str(source)), timeout=5.0)
 
         assert not first.is_running

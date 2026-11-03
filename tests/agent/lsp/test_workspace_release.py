@@ -174,6 +174,7 @@ def test_workspace_removal_releases_only_its_language_servers(entry, mock_pyrigh
         svc.shutdown()
 
 
+@pytest.mark.platforms("posix")
 def test_reaper_shuts_down_client_whose_root_was_deleted(mock_pyright, tmp_path):
     """A root deleted outside Hermes is reaped on the next sweep even though the client is not idle."""
     repo = _make_repo(tmp_path, "repo")

@@ -60,7 +60,7 @@ def test_reused_multiroot_client_attaches_outside_state_lock(monkeypatch):
     assert result is client
 
 
-def test_delta_baseline_is_capped_by_write_recency(monkeypatch):
+def test_delta_baseline_is_capped_by_write_recency(monkeypatch, tmp_path):
     """Driven through the production entry points (``snapshot_baseline`` before a write, ``_apply_delta``
     rolling the baseline forward after one): baselines beyond _DELTA_BASELINE_CAP evict the path
     written longest ago, and re-touching a path refreshes it instead of aging it out."""
@@ -87,13 +87,15 @@ def test_delta_baseline_is_capped_by_write_recency(monkeypatch):
 
     service._delta_baseline = _LockedDict()
     cap = manager._DELTA_BASELINE_CAP
-    for i in range(cap):
-        service.snapshot_baseline(f"/repo/f{i}.py")
+    paths = [str(tmp_path / f"f{i}.py") for i in range(cap)]
+    for path in paths:
+        service.snapshot_baseline(path)
     server_diags.append({"message": "rewritten"})
-    assert service._apply_delta("/repo/f0.py", [{"message": "rewritten"}], None) == [{"message": "rewritten"}]
+    assert service._apply_delta(paths[0], [{"message": "rewritten"}], None) == [{"message": "rewritten"}]
     server_diags.clear()
-    service.snapshot_baseline("/repo/new.py")
+    new_path = str(tmp_path / "new.py")
+    service.snapshot_baseline(new_path)
     assert len(service._delta_baseline) == cap
-    assert "/repo/f1.py" not in service._delta_baseline
-    assert service._delta_baseline["/repo/f0.py"] == [{"message": "rewritten"}]
-    assert "/repo/new.py" in service._delta_baseline
+    assert paths[1] not in service._delta_baseline
+    assert service._delta_baseline[paths[0]] == [{"message": "rewritten"}]
+    assert new_path in service._delta_baseline
