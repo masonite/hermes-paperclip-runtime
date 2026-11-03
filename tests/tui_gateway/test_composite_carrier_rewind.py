@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+from tests.tui_gateway.thread_fixtures import set_thread_class
 from types import SimpleNamespace
 
 import pytest
@@ -14,7 +15,6 @@ from agent.context_compressor import (
 )
 from hermes_state import SessionDB
 from tui_gateway import server
-
 
 def _composite_carrier() -> dict:
     return {
@@ -486,7 +486,7 @@ def test_prompt_row_id_rewind_preserves_scaffold_before_regeneration(
             self._target()
 
     session["agent"] = _Agent()
-    monkeypatch.setattr(server.threading, "Thread", _ImmediateThread)
+    set_thread_class(monkeypatch, server, _ImmediateThread)
     monkeypatch.setattr(server, "_get_usage", lambda _agent: {})
     monkeypatch.setattr(server, "render_message", lambda *_args: "")
     monkeypatch.setattr(server, "_emit", lambda *_args: None)

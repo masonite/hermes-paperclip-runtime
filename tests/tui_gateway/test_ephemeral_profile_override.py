@@ -20,13 +20,14 @@ from ``tui_gateway.server._methods`` with ``threading.Thread`` patched to run th
 target inline, then asserts on the recorded override set/reset calls and the agent.
 """
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from tui_gateway import server as srv
 
-PROFILE_HOME = "/home/user/.hermes/profiles/work"
+PROFILE_HOME = str(Path("/home/user/.hermes/profiles/work"))
 
 class _InlineThread:
     """Drop-in for ``threading.Thread`` that runs the target synchronously.

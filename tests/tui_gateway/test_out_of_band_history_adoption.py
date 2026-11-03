@@ -9,10 +9,10 @@ held only the early snapshot.
 
 import contextlib
 import threading
+from tests.tui_gateway.thread_fixtures import set_thread_class
 
 from hermes_state import SessionDB
 from tui_gateway import server
-
 
 def _bind_db(monkeypatch, db):
     @contextlib.contextmanager
@@ -111,7 +111,7 @@ def _immediate_thread(monkeypatch) -> None:
         def start(self):
             self._target()
 
-    monkeypatch.setattr(server.threading, "Thread", _ImmediateThread)
+    set_thread_class(monkeypatch, server, _ImmediateThread)
 
 
 def _desktop_prompt(db, session, monkeypatch, text: str = "continue on desktop") -> list:
