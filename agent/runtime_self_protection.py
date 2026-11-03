@@ -31,10 +31,10 @@ from __future__ import annotations
 
 import os
 import re
-import shlex
 import sys
 from functools import lru_cache
 from pathlib import Path
+from hermes_cli._subprocess_compat import split_command_line
 from typing import Optional
 
 # Split a command line into individually-analyzable commands. Newlines, `;`,
@@ -184,7 +184,7 @@ def is_protected_path(path: str, *, follow: bool = True) -> Optional[str]:
 
 def _split_words(segment: str) -> list[str]:
     try:
-        return shlex.split(segment)
+        return split_command_line(segment)
     except ValueError:
         return segment.split()
 
