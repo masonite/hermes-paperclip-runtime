@@ -16,6 +16,7 @@ import contextlib
 import functools
 import json
 import logging
+import time
 from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any, Optional
@@ -83,13 +84,18 @@ def write_drain_request(
 def clear_drain_request(*, home: Optional[Path] = None) -> bool:
     """Remove the drain marker (cancel-drain, idempotent). Returns True if one existed."""
     path = drain_request_path(home)
-    try:
-        path.unlink()
-        return True
-    except OSError as e:
-        if not isinstance(e, FileNotFoundError):
-            _log.warning("drain-control: failed to remove %s: %s", path, e)
-        return False
+    for attempt in range(6):
+        try:
+            path.unlink()
+            return True
+        except OSError as e:
+            # A concurrent Windows marker reader briefly denies delete sharing.
+            if getattr(e, "winerror", None) in (32, 33) and attempt < 5:
+                time.sleep(0.01 * (attempt + 1))
+                continue
+            if not isinstance(e, FileNotFoundError):
+                _log.warning("drain-control: failed to remove %s: %s", path, e)
+            return False
 
 
 def _marker_is_expired(body: dict[str, Any]) -> bool:

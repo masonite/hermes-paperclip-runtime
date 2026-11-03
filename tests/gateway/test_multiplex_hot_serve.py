@@ -362,9 +362,10 @@ async def test_unserve_releases_gateway_held_log_and_mcp_handles(tmp_path, monke
         assert all(gamma_dir.resolve() in handler._profile_handlers for handler in routers)
         gamma_handlers = [handler._profile_handlers[gamma_dir.resolve()] for handler in routers]
         alpha_handlers = [handler._profile_handlers[alpha_dir.resolve()] for handler in routers]
-        # Before the reconcile the deleted profile's routed handlers each hold an open fd into
-        # its home — the ``.__agent.lock`` lock handle on Windows, the log stream on POSIX.
-        assert all(_holds_open_log_file(handler) for handler in gamma_handlers)
+        gamma_closes = [MagicMock(wraps=handler.close) for handler in gamma_handlers]
+        alpha_closes = [MagicMock(wraps=handler.close) for handler in alpha_handlers]
+        for handler, close in zip(gamma_handlers + alpha_handlers, gamma_closes + alpha_closes):
+            monkeypatch.setattr(handler, "close", close)
 
         with patch("hermes_cli.profiles.get_active_profile_name", return_value="default"):
             await runner._start_secondary_profile_adapters()
@@ -380,10 +381,17 @@ async def test_unserve_releases_gateway_held_log_and_mcp_handles(tmp_path, monke
         assert all(gamma_dir.resolve() not in handler._profile_handlers for handler in routers)
         assert all(gamma_dir.resolve() not in handler._profile_homes for handler in routers)
         assert all(alpha_dir.resolve() in handler._profile_handlers for handler in routers)
-        # The popped handler's fd into the deleted home is actually closed — not just the
-        # routing entry removed — while a still-served sibling keeps its handles open.
+        # Close each removed handler even when the Windows backend releases handles after writes.
+        assert all(close.call_count == 1 for close in gamma_closes)
+        assert not any(close.called for close in alpha_closes)
         assert not any(_holds_open_log_file(handler) for handler in gamma_handlers)
-        assert all(_holds_open_log_file(handler) for handler in alpha_handlers)
+        token = set_hermes_home_override(alpha_dir)
+        try:
+            logger.warning("still served after gamma removal")
+        finally:
+            reset_hermes_home_override(token)
+        hermes_logging.flush_log_queue()
+        assert "still served after gamma removal" in (alpha_dir / "logs" / "agent.log").read_text()
         assert "open routed handles for alpha" in (alpha_dir / "logs" / "agent.log").read_text()
     finally:
         hermes_logging._reset_queued_handlers()
