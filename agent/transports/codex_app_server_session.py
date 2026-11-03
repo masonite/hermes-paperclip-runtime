@@ -28,6 +28,9 @@ from agent.transports.hermes_tools_mcp_server import HERMES_TOOLS_MCP_SERVER_NAM
 logger = logging.getLogger(__name__)
 
 
+# Concurrent app-server launches can spend longer than 15 seconds initializing plugins.
+_THREAD_SETUP_TIMEOUT_SECONDS = 120.0
+
 _STDERR_TAIL_LINES = 12  # stderr tail on generic errors: legible, yet enough for a config/auth diagnostic
 _TIER_UNKNOWN = object()  # thread resumed: the tier it carries is not known
 
@@ -289,7 +292,7 @@ class CodexAppServerSession:
             if self._history_seed:
                 params["developerInstructions"] = "\n\n".join(
                     part for part in (params.get("developerInstructions"), self._history_seed) if part)
-            result = self._client.request("thread/start", params, timeout=15)
+            result = self._client.request("thread/start", params, timeout=_THREAD_SETUP_TIMEOUT_SECONDS)
             thread_id = _extract_thread_id(result)
             if not thread_id:
                 raise CodexAppServerError(
@@ -305,7 +308,7 @@ class CodexAppServerSession:
         carries the CURRENT prompt composition and provider (accepted by the resume schema, codex 0.147)."""
         assert self._client is not None
         try:
-            result = self._client.request("thread/resume", {"threadId": wanted, **params}, timeout=15)
+            result = self._client.request("thread/resume", {"threadId": wanted, **params}, timeout=_THREAD_SETUP_TIMEOUT_SECONDS)
         except CodexAppServerError as exc:
             raise CodexThreadResumeError(wanted, exc.message) from exc
         thread_id = _extract_thread_id(result)
