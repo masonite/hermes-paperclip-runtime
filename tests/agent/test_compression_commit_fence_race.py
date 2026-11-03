@@ -197,3 +197,65 @@ class TestStallFallbackFencePublication:
         assert isinstance(retry, CompressionCommitFence)
         assert registration.fence is retry
         assert vars(agent)["_active_compression_commit_fence"] is other_fence
+
+
+def test_hard_stop_waits_for_commit_already_admitted(tmp_path: Path) -> None:
+    """A surfaced stop never races an untracked post-return transcript commit."""
+    from tests.agent.test_compression_concurrent_fork import _build_agent_with_db
+
+    db = SessionDB(db_path=tmp_path / "state.db")
+    session_id = "HARD_CANCEL_AFTER_COMMIT_ADMISSION"
+    db.create_session(session_id, source="tui")
+    agent = _build_agent_with_db(db, session_id)
+    agent.compression_in_place = True
+    agent._cached_system_prompt = "sys"
+    messages = [{"role": "user", "content": f"m{i}"} for i in range(20)]
+    commit_started = threading.Event()
+    allow_commit = threading.Event()
+    stop_started = threading.Event()
+    stop_returned = threading.Event()
+    original_archive = db.archive_and_compact
+
+    def _blocked_archive(*args, **kwargs):
+        commit_started.set()
+        assert allow_commit.wait(timeout=30)
+        return original_archive(*args, **kwargs)
+
+    db.archive_and_compact = _blocked_archive
+    agent.context_compressor.compress.side_effect = lambda *_a, **_kw: [
+        {"role": "user", "content": "[CONTEXT COMPACTION] summary"},
+        {"role": "user", "content": "tail"},
+    ]
+    compression_result: dict[str, tuple] = {}
+    compression = threading.Thread(
+        target=lambda: compression_result.setdefault(
+            "value", agent._compress_context(messages, "sys", approx_tokens=120_000)
+        ),
+        daemon=True,
+    )
+    compression.start()
+    assert commit_started.wait(timeout=15)
+
+    stop = threading.Thread(
+        target=lambda: (
+            stop_started.set(),
+            agent.hard_interrupt("stop after commit admission"),
+            stop_returned.set(),
+        ),
+        daemon=True,
+    )
+    stop.start()
+    assert stop_started.wait(timeout=15)
+    assert not stop_returned.wait(timeout=2)
+    allow_commit.set()
+    compression.join(timeout=15)
+    stop.join(timeout=15)
+
+    assert not compression.is_alive()
+    assert not stop.is_alive()
+    assert stop_returned.is_set()
+    assert compression_result["value"][0][0]["content"] == (
+        "[CONTEXT COMPACTION] summary"
+    )
+    assert agent._hard_interrupt_requested.is_set()
+    assert db.get_compression_lock_holder(session_id) is None

@@ -22,6 +22,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, Dict
 from pathlib import Path
 
+from hermes_platform.file_metadata import stat_file
 from tools.binary_extensions import has_binary_extension
 from agent.file_safety import get_write_denied_error
 from tools.file_operations_common import (
@@ -930,7 +931,7 @@ class ShellFileOperations(LintMixin, SearchMixin, FileOperations):
         full = path if os.path.isabs(path) else os.path.join(
             getattr(self.env, "cwd", None) or self.cwd, path)
         try:
-            st = os.stat(full)
+            st = stat_file(full)
         except (FileNotFoundError, NotADirectoryError):
             if os.path.islink(full):  # dangling: an entry, not an absent path (``_probe_regular_file``)
                 return self._not_regular_error(path)
@@ -1620,7 +1621,8 @@ class ShellFileOperations(LintMixin, SearchMixin, FileOperations):
 
         from tools.fuzzy_match import fuzzy_find_and_replace
         new_content, match_count, _strategy, error = fuzzy_find_and_replace(
-            content, old_string, new_string, replace_all)
+            _normalize_line_endings(content, "\n"),
+            _normalize_line_endings(old_string, "\n"), new_string, replace_all)
         if error or match_count == 0:
             return self._no_match_result(path, content, old_string, new_string, match_count, error)
         # Models send bare-LF old/new strings; normalize the substituted region to
