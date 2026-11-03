@@ -571,7 +571,7 @@ class TestTerminalToolGatewayLifecycleGuard:
         script.write_text("#!/usr/bin/env bash\nsleep 45\nhermes gateway restart\n", encoding="utf-8")
         self._patch_env(monkeypatch, self._make_fake_env(), inside_gateway=True)
 
-        result = json.loads(tt.terminal_tool(command=f"/bin/bash {script}"))
+        result = json.loads(tt.terminal_tool(command=f"/bin/bash {script.as_posix()}"))
 
         assert result["exit_code"] == 1
         assert "referenced script" in result["error"]
@@ -693,7 +693,7 @@ class TestTerminalToolGatewayLifecycleGuard:
         )
         self._patch_env(monkeypatch, self._make_fake_env(), inside_gateway=True)
 
-        result = json.loads(tt.terminal_tool(command=f"/bin/bash {script}"))
+        result = json.loads(tt.terminal_tool(command=f"/bin/bash {script.as_posix()}"))
 
         assert result["exit_code"] == 1
         assert "referenced script" in result["error"]
@@ -725,7 +725,7 @@ class TestTerminalToolGatewayLifecycleGuard:
         script.chmod(0o700)
         self._patch_env(monkeypatch, self._make_fake_env(), inside_gateway=True)
 
-        result = json.loads(tt.terminal_tool(command=str(script)))
+        result = json.loads(tt.terminal_tool(command=script.as_posix()))
 
         assert result["exit_code"] == 1
 
@@ -748,7 +748,7 @@ class TestTerminalToolGatewayLifecycleGuard:
         self._patch_env(monkeypatch, self._make_fake_env(), inside_gateway=True)
 
         result = json.loads(tt.terminal_tool(
-            command=f"/bin/bash -O extglob {script}"
+            command=f"/bin/bash -O extglob {script.as_posix()}"
         ))
 
         assert result["exit_code"] == 1
@@ -789,10 +789,11 @@ class TestTerminalToolGatewayLifecycleGuard:
 
         self._patch_env(monkeypatch, _FakeEnv(), inside_gateway=True)
 
-        result = json.loads(tt.terminal_tool(command=f"/bin/bash {outer}"))
+        result = json.loads(tt.terminal_tool(command=f"/bin/bash {outer.as_posix()}"))
 
         assert result["exit_code"] == 1
 
+    @pytest.mark.platforms("posix")
     def test_non_regular_referenced_script_fails_closed(self, monkeypatch, tmp_path):
         import tools.terminal_tool as tt
 
@@ -843,7 +844,7 @@ class TestTerminalToolGatewayLifecycleGuard:
         monkeypatch.setattr(
             tt, "_check_all_guards", lambda cmd, env, **kwargs: {"approved": True}
         )
-        command = f"/bin/bash {script}"
+        command = f"/bin/bash {script.as_posix()}"
 
         result = json.loads(tt.terminal_tool(command=command))
 
@@ -893,7 +894,7 @@ class TestLifecycleGuardModule:
         script = tmp_path / "padded.sh"
         script.write_bytes(b"#!/usr/bin/env bash\n# pad\x00\nhermes gateway restart\n")
         assert (
-            contains_gateway_lifecycle_command_or_referenced_script(f"bash {script}")
+            contains_gateway_lifecycle_command_or_referenced_script(f"bash {script.as_posix()}")
             is True
         )
 
@@ -911,7 +912,7 @@ class TestLifecycleGuardModule:
         script = tmp_path / "padded_noshebang.sh"
         script.write_bytes(b"# ok\n# pad\x00\nhermes gateway restart\n")
         assert (
-            contains_gateway_lifecycle_command_or_referenced_script(f"bash {script}")
+            contains_gateway_lifecycle_command_or_referenced_script(f"bash {script.as_posix()}")
             is True
         )
 
@@ -946,7 +947,7 @@ class TestLifecycleGuardModule:
         script = tmp_path / "huge.sh"
         script.write_bytes(b"#!/usr/bin/env bash\n# \x00" + b"x" * (1024 * 1024 + 64) + b"\n")
         assert (
-            contains_gateway_lifecycle_command_or_referenced_script(f"bash {script}")
+            contains_gateway_lifecycle_command_or_referenced_script(f"bash {script.as_posix()}")
             is True
         )
 
@@ -1078,6 +1079,7 @@ class TestLifecycleGuardModule:
         with pytest.raises(GatewayLifecycleBlocked):
             check_gateway_lifecycle("daily ops", str(script))
 
+    @pytest.mark.platforms("macos")
     def test_cloud_backed_symlink_fails_closed_without_opening_target(
         self, tmp_path, monkeypatch
     ):
@@ -1120,6 +1122,7 @@ class TestLifecycleGuardModule:
             str(launcher)
         ) is True
 
+    @pytest.mark.platforms("macos")
     def test_third_party_cloudstorage_path_fails_closed_without_opening(
         self, tmp_path, monkeypatch
     ):
@@ -1340,7 +1343,7 @@ class TestDotSourceIsScannedLikeSource:
     def helper(self, tmp_path):
         script = tmp_path / "helper.sh"
         script.write_text("#!/bin/sh\nhermes gateway restart\n", encoding="utf-8")
-        return script
+        return script.as_posix()
 
     @pytest.mark.parametrize("form", [". {path}", "source {path}"])
     def test_both_spellings_block_a_referenced_script(self, tmp_path, helper, form):
@@ -1396,7 +1399,7 @@ class TestTransparentWrapperPrefixes:
     def helper(self, tmp_path):
         script = tmp_path / "helper.sh"
         script.write_text("#!/bin/sh\nhermes gateway restart\n", encoding="utf-8")
-        return script
+        return script.as_posix()
 
     @pytest.mark.parametrize("prefix", [
         "sudo", "doas", "env", "nohup", "setsid", "nice", "eatmydata",
@@ -1491,7 +1494,7 @@ class TestTransparentWrapperPrefixes:
         script = tmp_path / name
         script.write_text("#!/bin/sh\nhermes gateway restart\n", encoding="utf-8")
         assert self._scan(f"./{name}", cwd=str(tmp_path)) is True
-        assert self._scan(str(script), cwd=str(tmp_path)) is True
+        assert self._scan(script.as_posix(), cwd=str(tmp_path)) is True
 
     def test_wrapped_clean_script_is_allowed(self, tmp_path):
         clean = tmp_path / "ok.sh"
@@ -1719,7 +1722,7 @@ class TestTerminalToolGatewayLifecycleGuardRemote:
 
         self._patch_env(monkeypatch, _LocalEnv(), inside_gateway=True)
         try:
-            result = json.loads(tt.terminal_tool(command=f"bash {db}"))
+            result = json.loads(tt.terminal_tool(command=f"bash {db.as_posix()}"))
         finally:
             conn.close()
 

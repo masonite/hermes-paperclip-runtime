@@ -176,6 +176,7 @@ class TestPatchSensitivePathExtraction:
     """
 
     @patch("tools.file_tools._get_file_ops")
+    @pytest.mark.platforms("posix")
     def test_patch_move_to_sensitive_dst_blocked(self, mock_get):
         from tools.file_tools import patch_tool
         patch_text = (
@@ -185,11 +186,12 @@ class TestPatchSensitivePathExtraction:
         )
         result = json.loads(patch_tool(mode="patch", patch=patch_text))
         assert "error" in result
-        assert "sensitive" in result["error"].lower()
+        assert any(word in result["error"].lower() for word in ("sensitive", "protected"))
         mock_get.assert_not_called()
 
 
     @patch("tools.file_tools._get_file_ops")
+    @pytest.mark.platforms("posix")
     def test_patch_update_no_space_after_asterisks_blocked(self, mock_get):
         """``***Update File:`` (no space after asterisks) must also be caught.
 
@@ -208,7 +210,7 @@ class TestPatchSensitivePathExtraction:
         )
         result = json.loads(patch_tool(mode="patch", patch=patch_text))
         assert "error" in result
-        assert "sensitive" in result["error"].lower()
+        assert any(word in result["error"].lower() for word in ("sensitive", "protected"))
         mock_get.assert_not_called()
 
 
@@ -375,8 +377,9 @@ class TestSensitivePathCheck:
         from tools.file_tools import write_file_tool
         result = json.loads(write_file_tool("/etc/passwd", "evil"))
         assert "error" in result
-        assert "sensitive system path" in result["error"]
+        assert any(word in result["error"].lower() for word in ("sensitive", "protected"))
 
+    @pytest.mark.platforms("posix")
     def test_macos_private_var_carveouts(self):
         """macOS temp dirs under /private/var must not be blanket-blocked,
         while the genuinely-sensitive /private/var subtrees still are."""

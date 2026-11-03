@@ -685,7 +685,9 @@ class SearchMixin:
         if not paths:
             return paths
 
-        escaped_root = self._escape_shell_arg(root)
+        from tools.environments.local import LocalEnvironment
+        escaped_root = (self._escape_native_tool_arg(root) if isinstance(self.env, LocalEnvironment)
+                        else self._escape_shell_arg(root, translate_path=False))
         probe = self._exec(
             f"git -C {escaped_root} rev-parse --is-inside-work-tree >/dev/null 2>&1",
             timeout=10,
@@ -694,11 +696,11 @@ class SearchMixin:
             return paths
 
         result = self._exec(
-            f"git -C {escaped_root} check-ignore --stdin",
+            f"git -C {escaped_root} check-ignore -z --stdin",
             timeout=10,
-            stdin_data="\n".join(paths),
+            stdin_data="\0".join(paths) + "\0",
         )
-        ignored = set(result.stdout.splitlines())
+        ignored = set(result.stdout.split("\0"))
         return [item_path for item_path in paths if item_path not in ignored]
 
     def _sort_paths_by_mtime(self, paths: list[str]) -> list[str]:
@@ -776,6 +778,9 @@ class SearchMixin:
             else:
                 dirs.append(line)
 
+        from tools.environments.local import LocalEnvironment, _IS_WINDOWS, _msys_to_windows_path
+        if _IS_WINDOWS and isinstance(self.env, LocalEnvironment):
+            dirs = [_msys_to_windows_path(directory) for directory in dirs]
         if dirs:
             # An explicitly selected hidden root keeps its (hidden) subtree;
             # any other hidden descendants stay invisible, matching rg.

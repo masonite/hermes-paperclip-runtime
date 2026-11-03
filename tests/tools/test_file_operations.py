@@ -638,6 +638,7 @@ class TestPatchReplacePostWriteVerification:
 # Atomic write: umask-default permissions for new files
 # =========================================================================
 
+@pytest.mark.platforms("posix")
 class TestAtomicWriteNewFilePermissions:
     """_atomic_write should apply umask-default perms to new files (not 0600)."""
 
@@ -681,6 +682,7 @@ class TestAtomicWriteNewFilePermissions:
         assert dest.stat().st_mode & 0o777 == 0o755
 
 
+@pytest.mark.require_symlinks
 class TestAtomicWriteThroughSymlink:
     """_atomic_write must edit a symlink's target, not replace the link.
 
