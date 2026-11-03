@@ -27,12 +27,12 @@ posix_only = pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals /
 
 def _script(tmp_path: Path, code: str) -> Path:
     path = tmp_path / f"child_{abs(hash(code))}.py"
-    path.write_text(textwrap.dedent(code), encoding="utf-8")
+    path.write_text(f"import sys; sys.path[:] = {sys.path!r}\n" + textwrap.dedent(code), encoding="utf-8")
     return path
 
 
 def _python(tmp_path: Path, code: str, *args, **kwargs) -> subprocess.Popen:
-    return subprocess.Popen([sys.executable, str(_script(tmp_path, code)), str(REPO_ROOT), *map(str, args)],
+    return subprocess.Popen([sys._base_executable, str(_script(tmp_path, code)), str(REPO_ROOT), *map(str, args)],
                             stdin=subprocess.DEVNULL, **kwargs)
 
 

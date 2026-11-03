@@ -592,7 +592,9 @@ class TestStatusSurfacesDeadScheduler:
     ):
         job = create_job(prompt="Hourly", schedule="every 60m")
         self._dead_gateway(monkeypatch, tmp_cron_dir / "locks")
-        self._park_next_run(job["id"], datetime.now(UTC) - timedelta(hours=7))
+        now = datetime.now(UTC)
+        monkeypatch.setattr("hermes_time.now", lambda: now)
+        self._park_next_run(job["id"], now - timedelta(hours=7))
         (tmp_cron_dir / "cron" / "ticker_heartbeat").write_text(str(time.time() - 25 * 3600))
 
         cron_command(Namespace(cron_command="status"))
@@ -624,7 +626,7 @@ class TestStatusSurfacesDeadScheduler:
         assert "Scheduler last ticked" not in status_out  # no heartbeat file → nothing to date
         assert "Next run:" in list_out and "Overdue:" not in list_out
 
-    def test_slash_cron_and_list_flag_overdue_but_not_paused(self, tmp_cron_dir, capsys):
+    def test_slash_cron_and_list_flag_overdue_but_not_paused(self, tmp_cron_dir, capsys, monkeypatch):
         # The in-chat `/cron` overview and `/cron list` (classic CLI + Ink TUI forward to the
         # same handler) read the same rows; a 7h-past stamp must not read as an upcoming run,
         # while a paused job keeps its plain label — pausing is why it did not fire.
@@ -635,7 +637,9 @@ class TestStatusSurfacesDeadScheduler:
 
         stale = create_job(prompt="Hourly", schedule="every 60m")
         paused = create_job(prompt="Parked", schedule="every 60m")
-        when = datetime.now(UTC) - timedelta(hours=7)
+        now = datetime.now(UTC)
+        monkeypatch.setattr("hermes_time.now", lambda: now)
+        when = now - timedelta(hours=7)
         self._park_next_run(stale["id"], when)
         self._park_next_run(paused["id"], when)
         jobs = load_jobs()

@@ -11,6 +11,7 @@ PowerShell, update probes) whose children legitimately need GH_TOKEN / HF_TOKEN.
 import os
 import subprocess
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 from hermes_cli.local_runtime import supervisor
 from hermes_cli.local_runtime.processes import server_child_env, spawn_server
@@ -47,10 +48,13 @@ def test_spawn_server_keeps_the_callers_environment(monkeypatch):
     """The generic spawner (bounded_probe_run's git/PowerShell probes) must pass an explicit
     ``env=`` through untouched: a gh-backed credential helper needs GITHUB_TOKEN."""
     monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kwargs: SimpleNamespace(kwargs=kwargs, pid=123))
-    monkeypatch.setattr("hermes_cli.local_runtime.processes._WindowsJob", lambda: SimpleNamespace(assign=lambda proc: None))
+    job_type = Mock(return_value=SimpleNamespace(assign=lambda proc: None))
+    monkeypatch.setattr("hermes_cli.local_runtime.processes._WindowsJob", job_type)
     monkeypatch.setattr("hermes_cli.local_runtime.processes.psutil.Process", lambda pid: SimpleNamespace(resume=lambda: None))
     proc, _job = spawn_server(["git", "fetch"], env={"GITHUB_TOKEN": "g", "PATH": "/bin"})
     assert proc.kwargs["env"] == {"GITHUB_TOKEN": "g", "PATH": "/bin"}
+    if os.name == "nt":
+        job_type.assert_called_once_with(allow_breakaway=False)
 
 
 def test_server_child_env_is_case_insensitive_and_pure():

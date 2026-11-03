@@ -70,6 +70,7 @@ class TestCompletionConsumedPrune:
                 self.started_at = time.time() - (FINISHED_TTL_SECONDS + 100)
                 self.exited = True
                 self.process = None  # handle release reads the real dataclass fields
+                self._reader_thread = None
                 self._pty = None
 
         reg._finished["stale-1"] = _FakeSess("stale-1")
