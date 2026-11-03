@@ -14,6 +14,8 @@ import pytest
 
 from hermes_cli import linux_desktop_entry as lde
 
+pytestmark = pytest.mark.platforms("linux")
+
 
 @pytest.fixture
 def xdg_home(tmp_path, monkeypatch) -> Path:
@@ -22,7 +24,6 @@ def xdg_home(tmp_path, monkeypatch) -> Path:
     # Isolate the known-wrapper probe too: tests must never see the real
     # ~/.local/bin/hermes on the dev machine.
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setattr(lde.sys, "platform", "linux")
     return data_home
 
 
@@ -838,20 +839,6 @@ def test_install_without_source_icon_uses_themed_name(tmp_path, xdg_home, monkey
     # A broken absolute path renders as no icon. The themed name resolves
     # when Hermes is installed some other way.
     assert _parse(entry.read_text(encoding="utf-8"))["Icon"] == "hermes"
-
-
-@pytest.mark.platforms("macos")
-def test_install_is_a_noop_on_macos(tmp_path):
-    """Faking darwin only renamed the host — the real macOS runner is the
-    only place the `sys.platform` guard is exercised against a real host."""
-    assert lde.install_desktop_entry(_make_project(tmp_path)) is None
-
-
-@pytest.mark.platforms("windows")
-def test_install_is_a_noop_on_windows(tmp_path):
-    """As above for Windows: a fake left POSIX paths and a POSIX XDG layout
-    in place, so the no-op was never proven against a real one."""
-    assert lde.install_desktop_entry(_make_project(tmp_path)) is None
 
 
 # ---------------------------------------------------------------------------

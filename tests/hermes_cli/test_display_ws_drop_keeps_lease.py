@@ -55,6 +55,7 @@ async def _bridge_once(close_code: int, home: str) -> lease.Lease:
 # 1005 (no status code) is what noVNC's code-less socket.close() AND some proxies produce on a drop, so
 # the server keeps the lease; the Desktop sends an explicit 1000 when the pane is closed on purpose.
 @pytest.mark.parametrize(("close_code", "human_keeps_control"), [(1006, True), (1005, True), (1000, False)])
+@pytest.mark.platforms("posix")
 def test_only_a_clean_viewer_close_hands_the_screen_back(monkeypatch, close_code, human_keeps_control):
     lease._reset_for_tests()
     with tempfile.TemporaryDirectory() as home:
@@ -89,6 +90,7 @@ class _OpenWs(_Ws):
         return {"type": "websocket.disconnect", "code": self._code}
 
 
+@pytest.mark.platforms("posix")
 def test_a_takeover_made_by_another_process_stops_input_within_the_refresh_interval(monkeypatch):
     """The bridge caches the input decision instead of reading lease.json per message; a takeover
     written by ANOTHER process (no in-process listener fires) must still be seen quickly."""
@@ -130,6 +132,7 @@ def test_a_takeover_made_by_another_process_stops_input_within_the_refresh_inter
     assert elapsed < 0.5, elapsed
 
 
+@pytest.mark.platforms("posix")
 def test_no_bridge_task_or_socket_outlives_the_bridge():
     """The pumps were cancelled but never awaited and the Xvnc writer closed without wait_closed, so
     a returned _bridge still had tasks (and a half-closed socket) in flight on the loop; a viewer

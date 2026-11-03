@@ -85,7 +85,7 @@ def test_at_file_colon_only_files(tmp_path, monkeypatch):
 # ── Non-local terminal backend: the popup must show the backend's tree ──
 
 
-def _fake_remote_backend(monkeypatch, remote_root: Path) -> list:
+def _fake_remote_backend(monkeypatch, remote_root: Path, real_bash: str) -> list:
     """Stand in for an SSH/Docker backend: run the gateway's listing command inside ``remote_root``
     (its ``$HOME`` too) and record what was asked, so the host tree cannot leak into the answer."""
     import json
@@ -98,15 +98,15 @@ def _fake_remote_backend(monkeypatch, remote_root: Path) -> list:
     def fake_terminal_tool(command, **kwargs):
         calls.append((command, kwargs.get("task_id")))
         proc = subprocess.run(
-            command, shell=True, cwd=remote_root, capture_output=True, text=True,
-            env={"PATH": os.environ.get("PATH", ""), "HOME": str(remote_root)})
+            [real_bash, "-c", command], cwd=remote_root, capture_output=True, text=True,
+            env={**os.environ, "HOME": remote_root.as_posix(), "USERPROFILE": str(remote_root)})
         return json.dumps({"output": proc.stdout, "exit_code": proc.returncode})
 
     monkeypatch.setattr(terminal_tool_mod, "terminal_tool", fake_terminal_tool)
     return calls
 
 
-def test_remote_backend_completion_lists_the_backend_not_the_host(tmp_path, monkeypatch):
+def test_remote_backend_completion_lists_the_backend_not_the_host(tmp_path, monkeypatch, real_bash):
     """With ``terminal.backend: ssh`` the composer listed the gateway host's directory — a same-named
     workspace on both machines made wrong suggestions look right (#112963). The listing must come
     from the session's terminal backend, addressed by the session key."""
@@ -119,7 +119,7 @@ def test_remote_backend_completion_lists_the_backend_not_the_host(tmp_path, monk
     monkeypatch.setenv("TERMINAL_ENV", "ssh")
     monkeypatch.setenv("TERMINAL_CWD", "ws")
     monkeypatch.setitem(server._sessions, "remote-sid", {"session_key": "remote-key"})
-    calls = _fake_remote_backend(monkeypatch, remote)
+    calls = _fake_remote_backend(monkeypatch, remote, real_bash)
 
     resp = server.handle_request({
         "id": "1", "method": "complete.path", "params": {"word": "re", "session_id": "remote-sid"}})
@@ -135,7 +135,7 @@ def test_remote_backend_completion_lists_the_backend_not_the_host(tmp_path, monk
     assert [it["text"] for it in resp["result"]["items"]] == ["other-dir/"]
 
 
-def test_remote_backend_completion_expands_tilde_on_the_backend(tmp_path, monkeypatch):
+def test_remote_backend_completion_expands_tilde_on_the_backend(tmp_path, monkeypatch, real_bash):
     """``~/`` names the backend user's home, not the gateway host's: the host home must never be
     substituted into the command sent to the backend."""
     remote = tmp_path / "remote"
@@ -143,7 +143,7 @@ def test_remote_backend_completion_expands_tilde_on_the_backend(tmp_path, monkey
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("TERMINAL_ENV", "ssh")
     monkeypatch.delenv("TERMINAL_CWD", raising=False)
-    calls = _fake_remote_backend(monkeypatch, remote)
+    calls = _fake_remote_backend(monkeypatch, remote, real_bash)
 
     texts = [t for t, _, _ in _items("~/pro")]
 
@@ -151,23 +151,17 @@ def test_remote_backend_completion_expands_tilde_on_the_backend(tmp_path, monkey
     assert os.path.expanduser("~") not in calls[0][0]
 
 
-def test_remote_backend_completion_speaks_posix_from_a_windows_host(tmp_path, monkeypatch):
+@pytest.mark.platforms("windows")
+def test_remote_backend_completion_speaks_posix_from_a_windows_host(tmp_path, monkeypatch, real_bash):
     """A Windows gateway host (Desktop's in-process gateway) with an ssh/docker backend must still address the
     backend with POSIX paths: ``os.path`` arithmetic there turns ``ws`` + ``sub/`` into ``ws\\sub``, which the
     backend's listing script cannot resolve, so every non-local completion came back empty."""
-    import ntpath
-    import types
-
     remote = tmp_path / "remote"
     (remote / "ws" / "sub" / "remote-dir").mkdir(parents=True)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("TERMINAL_ENV", "ssh")
     monkeypatch.setenv("TERMINAL_CWD", "ws")
-    windows_os = types.ModuleType("os")
-    windows_os.__dict__.update(vars(os))
-    windows_os.path, windows_os.sep = ntpath, "\\"
-    monkeypatch.setattr(server, "os", windows_os)
-    calls = _fake_remote_backend(monkeypatch, remote)
+    calls = _fake_remote_backend(monkeypatch, remote, real_bash)
 
     texts = [t for t, _, _ in _items("sub/re")]
 

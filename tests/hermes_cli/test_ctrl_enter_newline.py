@@ -108,6 +108,7 @@ def test_ctrl_j_is_not_submit_when_multiline_shortcuts_enabled():
     assert ("c-j",) not in kb.bound
 
 
+@pytest.mark.platforms("linux")
 def test_ctrl_j_legacy_submit_when_multiline_shortcuts_disabled():
     """Users can opt out to preserve Enter-as-LF submit fallback on odd PTYs."""
     import cli as cli_mod

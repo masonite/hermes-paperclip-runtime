@@ -67,6 +67,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.platforms("posix")
+
 from tests.conformance.persistence._harness import (
     CHILD_DEADLINE,
     REPO_ROOT,

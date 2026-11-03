@@ -61,6 +61,7 @@ class TestMain:
 
 
 class TestLiveGatewayGuard:
+    @pytest.mark.platforms("linux")
     @pytest.mark.parametrize("verb", ["run", "restart"])
     def test_reap_refuses_when_live_gateway_in_cgroup(self, monkeypatch, verb):
         # Regression: a live gateway PID still in cgroup.procs (gateway is PID 1
