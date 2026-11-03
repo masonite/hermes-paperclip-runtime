@@ -422,20 +422,8 @@ def terminate_pid(
     if not (force and _IS_WINDOWS):
         os.kill(pid, signal.SIGTERM if not force else getattr(signal, "SIGKILL", signal.SIGTERM))
         return
-    # Hide flags: a bare taskkill spawn from windowless pythonw.exe would flash a conhost window.
-    from hermes_cli._subprocess_compat import windows_hide_flags
-
-    try:
-        result = subprocess.run(
-            ["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=10, creationflags=windows_hide_flags(),
-        )
-    except FileNotFoundError:
-        os.kill(pid, signal.SIGTERM)
-        return
-    if result.returncode != 0:
-        details = (result.stderr or result.stdout or "").strip()
-        raise OSError(details or f"taskkill failed for PID {pid}")
+    from gateway.status_windows import terminate_tree
+    terminate_tree(pid, expected_start_time)
 
 
 def _start_times_agree(current: Any, *recorded: Any) -> bool:

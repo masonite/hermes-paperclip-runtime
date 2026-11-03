@@ -288,5 +288,6 @@ def test_a_pause_force_kills_only_the_process_it_discovered(tmp_path, monkeypatc
         else:
             assert victim.poll() is None, "force-kill took a process born after discovery (a reused PID)"
     finally:
-        subprocess.run(["taskkill", "/T", "/F", "/PID", str(victim.pid)], capture_output=True, check=False)
+        if victim.poll() is None:
+            victim.kill()
         victim.wait(timeout=30)

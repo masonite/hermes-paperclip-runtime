@@ -29,7 +29,7 @@ def test_silent_child_failure_reports_exit_code(tmp_path, monkeypatch):
     from types import SimpleNamespace
     mod = _load_runner()
     child = SimpleNamespace(pid=123, returncode=23, communicate=lambda **kwargs: ("", None))
-    monkeypatch.setattr(mod.subprocess, "Popen", lambda *args, **kwargs: child)
+    monkeypatch.setattr("hermes_cli.local_runtime.processes.spawn_server", lambda *a, **k: (child, None))
     monkeypatch.setattr(mod, "_kill_tree", lambda *args, **kwargs: None)
     _, code, output, counts, _ = mod._run_one_file_once(tmp_path / "test.py", [], tmp_path, 30)
     assert code == 23

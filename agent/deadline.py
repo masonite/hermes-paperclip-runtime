@@ -362,7 +362,7 @@ def run_bounded_sync(
 
 
 @contextmanager
-def _process_tree_snapshot(pid: int, *, hard_kill: bool):
+def _process_tree_snapshot(pid: int, *, hard_kill: bool, root=None, strict: bool = False):
     """Stop each hard-kill target before discovering its children: a running
     parent can fork after psutil builds its PID map and escape the final signal.
     Resume anything we stopped if signalling fails. Graceful signals never stop
@@ -373,7 +373,7 @@ def _process_tree_snapshot(pid: int, *, hard_kill: bool):
     try:
         try:
             import psutil
-            root = psutil.Process(pid)
+            root = root if root is not None else psutil.Process(pid)
             descendants = root.children(recursive=True)
             if hard_kill:
                 pending = [root]
@@ -409,6 +409,8 @@ def _process_tree_snapshot(pid: int, *, hard_kill: bool):
         except Exception:
             # Preserve the existing best-effort group fallback when discovery or
             # stopping is unavailable; never strand a successfully stopped target.
+            if strict:
+                raise
             logger.debug("kill_process_tree: snapshot incomplete for pid %s", pid, exc_info=True)
         yield descendants
     finally:

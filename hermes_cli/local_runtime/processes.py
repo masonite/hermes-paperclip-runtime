@@ -45,7 +45,7 @@ class _ExtendedLimits(ctypes.Structure):
 
 
 class _WindowsJob:
-    def __init__(self):
+    def __init__(self, *, allow_breakaway: bool = False):
         self._lock = threading.Lock()
         self._api = ctypes.WinDLL("kernel32", use_last_error=True)
         for name, args, result in (
@@ -64,8 +64,10 @@ class _WindowsJob:
             raise ctypes.WinError(ctypes.get_last_error())
         try:
             limits = _ExtendedLimits()
-            # Neither BREAKAWAY_OK nor SILENT_BREAKAWAY_OK: descendants stay contained.
+            # Ordinary descendants stay contained; explicit breakaway is opt-in.
             limits.BasicLimitInformation.LimitFlags = 0x2000  # KILL_ON_JOB_CLOSE
+            if allow_breakaway:
+                limits.BasicLimitInformation.LimitFlags |= 0x800  # BREAKAWAY_OK
             if not self._api.SetInformationJobObject(
                     self._handle, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
                 raise ctypes.WinError(ctypes.get_last_error())
@@ -107,8 +109,8 @@ def server_child_env(base_env: Mapping[str, str]) -> dict[str, str]:
     }
 
 
-def spawn_server(cmd, **kwargs) -> tuple[subprocess.Popen, _WindowsJob | None]:
-    """Start a router, returning its process and an owner-held containment handle.
+def spawn_server(cmd, *, allow_breakaway: bool = False, **kwargs) -> tuple[subprocess.Popen, _WindowsJob | None]:
+    """Start a child, returning its process and an owner-held containment handle.
 
     Keep the job until shutdown and call close() to terminate the entire tree.
     Windows closes it automatically if the owner dies. Other hosts retain Popen's
@@ -116,7 +118,7 @@ def spawn_server(cmd, **kwargs) -> tuple[subprocess.Popen, _WindowsJob | None]:
     """
     if sys.platform != "win32":
         return subprocess.Popen(cmd, **kwargs), None
-    job = _WindowsJob()
+    job = _WindowsJob(allow_breakaway=allow_breakaway)
     proc = None
     try:
         kwargs["creationflags"] = kwargs.get("creationflags", 0) | 0x00000004  # CREATE_SUSPENDED

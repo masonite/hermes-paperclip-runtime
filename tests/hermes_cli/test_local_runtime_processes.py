@@ -152,9 +152,9 @@ def test_failed_setup_never_runs_child_and_releases_handles(tmp_path, monkeypatc
     real_init = processes._WindowsJob.__init__
     real_assign = processes._WindowsJob.assign
 
-    def track_job(job):
+    def track_job(job, **kwargs):
         jobs.append(job)
-        real_init(job)
+        real_init(job, **kwargs)
         handles.append(job._handle)
 
     if failure == 'configure':
