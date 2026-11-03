@@ -37,7 +37,7 @@ print('ready', flush=True)
 sys.stdin.readline()
 """
     child = subprocess.Popen(
-        [sys.executable, "-u", "-c", script, str(install)],
+        [sys._base_executable, "-u", "-c", f"import sys; sys.path[:] = {sys.path!r}\n" + script, str(install)],
         env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True,
     )
@@ -96,7 +96,7 @@ cli.main(model='test-model', provider='openai', api_key='test-only',
 """
     output = {}
     child = subprocess.Popen(
-        [sys.executable, "-u", "-c", script, str(install)],
+        [sys._base_executable, "-u", "-c", f"import sys; sys.path[:] = {sys.path!r}\n" + script, str(install)],
         env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         text=True,
     )

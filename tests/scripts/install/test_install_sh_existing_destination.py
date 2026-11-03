@@ -30,6 +30,7 @@ def _stage_repository(tmp_path: Path, dest: Path) -> subprocess.CompletedProcess
 
 
 @pytest.mark.parametrize("shape", ["non-empty-dir", "file"])
+@pytest.mark.platforms("posix")
 def test_unrelated_destination_is_refused_untouched(tmp_path, shape):
     dest = tmp_path / "install"
     if shape == "file":
@@ -47,6 +48,7 @@ def test_unrelated_destination_is_refused_untouched(tmp_path, shape):
     assert not list(tmp_path.glob(".hermes-clone-*"))
 
 
+@pytest.mark.platforms("posix")
 def test_empty_destination_directory_becomes_the_checkout(tmp_path):
     dest = tmp_path / "install"
     dest.mkdir()

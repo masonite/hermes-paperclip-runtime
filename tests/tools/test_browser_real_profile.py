@@ -65,6 +65,7 @@ class TestSnapshotRealProfile:
         os.symlink("dead-target-1", root / "SingletonLock")
         return root
 
+    @pytest.mark.require_symlinks
     def test_fresh_snapshot_copies_auth_and_skips_caches(self, tmp_path, monkeypatch):
         import hermes_cli.browser_connect as bc
         src = self._make_profile(tmp_path / "real")
@@ -85,6 +86,7 @@ class TestSnapshotRealProfile:
         assert not (home / "browser-profile" / "chrome" / "Crashpad").exists()
         assert not (home / "browser-profile" / "chrome" / "SingletonLock").exists()
 
+    @pytest.mark.require_symlinks
     def test_existing_snapshot_refreshes_auth_files_only(self, tmp_path, monkeypatch):
         import hermes_cli.browser_connect as bc
         src = self._make_profile(tmp_path / "real")
@@ -111,6 +113,7 @@ class TestSnapshotRealProfile:
         assert dst is None
         assert err
 
+    @pytest.mark.platforms("posix")
     def test_snapshot_files_are_owner_only(self, tmp_path, monkeypatch):
         """Every copied file must be 0600 and every dir 0700 (#96729).
 
@@ -142,6 +145,7 @@ class TestSnapshotRealProfile:
                     offenders.append((os.path.join(root, f), oct(mode)))
         assert not offenders, f"group/world-accessible snapshot entries: {offenders}"
 
+    @pytest.mark.platforms("posix")
     def test_existing_lax_snapshot_heals_on_refresh(self, tmp_path, monkeypatch):
         """A snapshot left 0644 by an older build tightens on the next pass."""
         import stat

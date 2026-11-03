@@ -2,6 +2,7 @@
 import os
 import subprocess
 from pathlib import Path
+import pytest
 
 from ruamel.yaml import YAML
 
@@ -304,6 +305,7 @@ def test_publication_reconciler_has_every_recovery_trigger_and_shared_lock():
     assert not any(step.get("run", "").startswith("sleep ") for step in reconcile["steps"])
 
 
+@pytest.mark.platforms("linux")
 def test_docker_recovery_refuses_to_replace_a_divergent_version_tag(tmp_path):
     publish = workflow("docker.yml")["jobs"]["release-publish-manifest"]
     step = next(item for item in publish["steps"] if item.get("name") == "Create both immutable versioned manifest lists")

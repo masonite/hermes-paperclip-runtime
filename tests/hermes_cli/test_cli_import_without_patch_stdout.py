@@ -11,6 +11,7 @@ Modeled on tests/tui_gateway/test_slash_worker_sys_path.py's subprocess pattern.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -38,7 +39,7 @@ def _import_cli_without_patch_stdout():
         [sys.executable, "-c", code],
         capture_output=True,
         text=True,
-        env={"PYTHONPATH": str(PROJECT_ROOT), "PATH": "", "HOME": str(Path.home())},
+        env={"PYTHONPATH": str(PROJECT_ROOT), "PATH": "", "HOME": str(Path.home()), "USERPROFILE": str(Path.home()), "SYSTEMROOT": os.environ.get("SYSTEMROOT", "")},
         cwd=str(PROJECT_ROOT),
     )
 
@@ -58,7 +59,7 @@ def test_cli_patch_stdout_falls_back_to_nullcontext():
         [sys.executable, "-c", code],
         capture_output=True,
         text=True,
-        env={"PYTHONPATH": str(PROJECT_ROOT), "PATH": "", "HOME": str(Path.home())},
+        env={"PYTHONPATH": str(PROJECT_ROOT), "PATH": "", "HOME": str(Path.home()), "USERPROFILE": str(Path.home()), "SYSTEMROOT": os.environ.get("SYSTEMROOT", "")},
         cwd=str(PROJECT_ROOT),
     )
     assert proc.returncode == 0, proc.stderr

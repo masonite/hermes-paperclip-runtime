@@ -8,6 +8,8 @@ in the journey graph.
 
 import pytest
 
+pytestmark = pytest.mark.require_symlinks
+
 
 @pytest.fixture
 def external_home(tmp_path, monkeypatch):

@@ -253,7 +253,7 @@ def _builds(step: dict) -> bool:
 
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="needs bash")
-def test_downloadable_native_builds_refuse_to_ship_unsigned(tmp_path: Path):
+def test_downloadable_native_builds_refuse_to_ship_unsigned(tmp_path: Path, real_bash):
     """The Windows signer only warns without AZURE_SIGN_*; every native build
     leg whose artifacts are downloadable must therefore fail before building,
     under one gate shared with the macOS signing-credential check."""
@@ -279,7 +279,7 @@ def test_downloadable_native_builds_refuse_to_ship_unsigned(tmp_path: Path):
             env = {"PATH": os.environ["PATH"], "RUNNER_TEMP": str(tmp_path)}
             env.update({name: "" for name in names})
             env.update(values)
-            return subprocess.run(["bash", "-euo", "pipefail", "-c", step["run"]], env=env,
+            return subprocess.run([real_bash, "-euo", "pipefail", "-c", step["run"]], env=env,
                                   capture_output=True, text=True, timeout=60)
 
         proc = run()

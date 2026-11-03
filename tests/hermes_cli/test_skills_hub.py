@@ -680,8 +680,8 @@ def _stub_search(monkeypatch, results):
 
 
 @pytest.mark.parametrize("identifier", [
-    "computer-use", "NousResearch/hermes-agent/skills/productivity/pdf",
-    "skills-sh/nousresearch/hermes-agent/google-workspace", "blender-bpy-enhanced"])
+    pytest.param("computer-use", marks=pytest.mark.require_symlinks), pytest.param("NousResearch/hermes-agent/skills/productivity/pdf", marks=pytest.mark.require_symlinks),
+    pytest.param("skills-sh/nousresearch/hermes-agent/google-workspace", marks=pytest.mark.require_symlinks), "blender-bpy-enhanced"])
 def test_install_by_name_resolves_to_the_skill_it_names(monkeypatch, tmp_path, identifier):
     """`hermes skills install <bundled skill>` failed every time: the name resolved to a stranger's
     same-named hub skill or an ambiguity table, and this repo's own copy was rescanned as community

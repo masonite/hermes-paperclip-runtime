@@ -113,6 +113,7 @@ def test_doctor_raises_an_issue_when_nothing_owns_the_gateway_role(served_host, 
 
 
 @pytest.mark.parametrize("xdg", [False, True])
+@pytest.mark.platforms("linux")
 def test_doctor_checks_host_unit_linger_under_a_served_profile(served_host, tmp_path, capsys, monkeypatch, xdg):
     from hermes_cli import doctor_platform
 

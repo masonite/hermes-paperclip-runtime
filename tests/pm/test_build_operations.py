@@ -19,6 +19,7 @@ from tests.pm._fixtures import (
 )
 
 
+@pytest.mark.require_symlinks
 def test_stage_tools_copies_verified_closure_without_acquiring_or_live_state(tmp_path, client, monkeypatch, served):
     import importlib.util
     import pm

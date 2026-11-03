@@ -133,10 +133,10 @@ def _packaged_exe_rel() -> Path:
 
 def _npm_argv(cmd) -> list:
     """The npm command line inside a build call. A direct ``hermes desktop`` build holds the
-    checkout lock (review C5), so on POSIX it runs under the custody launcher
-    (``python -I -S -c <reaper> <fds> npm ...``)."""
+    checkout lock (review C5), so it runs under the host's custody launcher:
+    POSIX passes a lock fd; Windows passes a job handle and a report path."""
     cmd = list(cmd)
-    return cmd[6:] if cmd[1:4] == ["-I", "-S", "-c"] else cmd
+    return cmd[7 if sys.platform == "win32" else 6:] if cmd[1:4] == ["-I", "-S", "-c"] else cmd
 
 
 def _pack_into_staging(root: Path, content: str = "", returncode: int = 0):
@@ -327,6 +327,7 @@ def test_gui_close_preview_flag_forwards_to_packaged_exe(tmp_path, monkeypatch):
     with patch("hermes_cli.main_desktop._desktop_build_needed", return_value=False), \
          patch("hermes_cli.main_desktop._desktop_linux_sandbox_fixup", return_value=True), \
          patch("hermes_cli.main_desktop.subprocess.run", side_effect=fake_run), \
+         patch("hermes_cli.main_desktop.subprocess.Popen", side_effect=fake_run), \
          pytest.raises(SystemExit) as exc:
         cli_main.cmd_gui(_ns(close_preview=True))
 
@@ -1544,8 +1545,13 @@ def test_gui_foreground_launch_ctrl_c_exits_cleanly(tmp_path, monkeypatch, capsy
 
 
 def _gui_build_patches(root: Path, run_side_effect):
+    which = cli_main.shutil.which
+    def git_runner(name, *, base_env):
+        assert name == "git"
+        return types.SimpleNamespace(env=base_env)
     return [
-        patch("hermes_cli.main.shutil.which", return_value="/usr/bin/npm"),
+        patch("pm.ensure", side_effect=git_runner),
+        patch("hermes_cli.main.shutil.which", side_effect=lambda cmd, *a, **kw: "/usr/bin/npm" if cmd == "npm" else which(cmd, *a, **kw)),
         # Staging doubles are text; the PE-validation suite owns real binaries.
         patch("hermes_cli.main_desktop._desktop_exe_integrity_error", return_value=None),
         patch("hermes_cli.source_build.prepare_source_dependencies",
@@ -1640,6 +1646,7 @@ def test_swap_staged_desktop_app_stops_live_renderer_before_rename(tmp_path):
     stop.assert_called_once_with(desktop_dir, also_posix=True)
 
 
+@pytest.mark.platforms("posix")
 def test_stop_desktop_processes_locking_build_posix_swap_bypasses_early_return(tmp_path, monkeypatch):
     """#109643: also_posix=True must run the scan on POSIX (the default pack-time
     call stays Windows-only — the staging pack never touches the live tree)."""

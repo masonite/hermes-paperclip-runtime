@@ -1409,8 +1409,8 @@ class TestProfileRestoration:
         run_import(args)
 
         # Only valid profile should get a wrapper
-        assert (wrapper_dir / "valid").exists()
-        assert not (wrapper_dir / "empty").exists()
+        from hermes_cli.profiles import _wrapper_path
+        assert _wrapper_path("valid").exists() and not _wrapper_path("empty").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -1479,7 +1479,7 @@ class TestSafeCopyDb:
             return next(connections)
 
         monkeypatch.setattr(backup_mod.sqlite3, "connect", fake_connect)
-        monkeypatch.setattr(backup_mod.time, "monotonic", lambda: next(clock))
+        monkeypatch.setattr(backup_mod.time, "monotonic", lambda: next(clock, 101.1))
         monkeypatch.setattr(Path, "unlink", assert_closed_before_unlink)
 
         assert backup_mod._safe_copy_db(src, dst, timeout_seconds=1.0) is False
@@ -1795,7 +1795,7 @@ class TestQuickSnapshotProjectsKanban:
         monkeypatch.setattr(bk, "_safe_copy_db", _spy)
         snap_id = create_quick_snapshot(hermes_home=hermes_home)
         # The board db was copied via _safe_copy_db (not raw copy).
-        assert any(s.endswith("boards/work/kanban.db") for s in called["db"]), called["db"]
+        assert any(Path(s).as_posix().endswith("boards/work/kanban.db") for s in called["db"]), called["db"]
         copy = hermes_home / "state-snapshots" / snap_id / "kanban" / "boards" / "work" / "kanban.db"
         rows = sqlite3.connect(str(copy)).execute("SELECT * FROM tasks").fetchall()
         assert rows == [("w1", "ship")]
@@ -1833,7 +1833,7 @@ class TestFailedZipMemberRecovery:
         assert b"flaky.bin" not in salvage.read_bytes()
         with zipfile.ZipFile(salvage) as zf:
             assert "flaky.bin" not in zf.namelist()
-            assert zf.read("config.yaml") == b"model: test\n"
+            assert zf.read("config.yaml") == (hermes_home / "config.yaml").read_bytes()
             assert zf.testzip() is None
 
     def test_incomplete_pre_update_backup_does_not_rotate_last_complete(self, tmp_path, monkeypatch):
@@ -1859,7 +1859,7 @@ class TestFailedZipMemberRecovery:
         assert len(salvages) == 1, "repeated incomplete runs must not pile up"
         with zipfile.ZipFile(salvages[0]) as zf:
             assert "flaky.bin" not in zf.namelist()
-            assert zf.read("config.yaml") == b"model: test\n"
+            assert zf.read("config.yaml") == (hermes_home / "config.yaml").read_bytes()
             assert zf.testzip() is None
 
         # Salvage archives must not count toward retention on the next complete run.
@@ -2529,7 +2529,7 @@ class TestMemoryProviderExternalPaths:
         assert restored.exists()
         assert restored.read_text() == '{"peer":"bob"}'
         # Credential-shaped file tightened.
-        assert (restored.stat().st_mode & 0o777) == 0o600
+        assert os.name != "posix" or (restored.stat().st_mode & 0o777) == 0o600
         # External state did NOT leak into HERMES_HOME.
         assert not (hermes_home / "_external").exists()
 

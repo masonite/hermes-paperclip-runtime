@@ -172,6 +172,7 @@ def test_gui_releases_lock_before_packaged_electron_handoff(tmp_path, monkeypatc
     with patch("hermes_cli.main_desktop._desktop_launch_env", return_value=({}, [])), \
          patch("hermes_cli.main_desktop._register_linux_desktop_entry", return_value=None), \
          patch("hermes_cli.main_desktop.subprocess.run", side_effect=launch_after_lock_release), \
+         patch("hermes_cli.main_desktop.subprocess.Popen", side_effect=launch_after_lock_release), \
          patch("hermes_cli.main_desktop._desktop_build_needed", return_value=False), \
          pytest.raises(SystemExit) as exc:
         cli_desktop.cmd_gui(_args())
@@ -254,6 +255,7 @@ _UPDATE_HOLDER = (
 )
 
 
+@pytest.mark.platforms("posix")
 def test_a_held_desktop_build_lock_keeps_an_updater_off_the_checkout(tmp_path):
     """C5: a direct ``hermes desktop`` build holds DesktopBuildLock while npm writes the
     checkout; an updater (UpdateLock over the same checkout) must be refused meanwhile."""

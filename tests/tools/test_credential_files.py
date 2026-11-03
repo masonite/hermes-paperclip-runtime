@@ -553,6 +553,7 @@ class TestToAgentVisiblePathPerBackend:
         from tools.credential_files import to_agent_visible_cache_path
         assert to_agent_visible_cache_path("/etc/hosts") == "/etc/hosts"
 
+    @pytest.mark.require_symlinks
     def test_symlinked_home_maps_resolved_path(self, tmp_path, monkeypatch):
         """#103147: ``@file:`` expansion resolves the staged path, but the mount roots
         keep HERMES_HOME's symlinked spelling; the resolved path must still map."""

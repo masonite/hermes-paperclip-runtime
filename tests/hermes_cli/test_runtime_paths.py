@@ -48,7 +48,7 @@ def test_store_resolution_follows_relocated_payload(tmp_path, monkeypatch):
     assert store_root(repo) == get_default_hermes_root() / "tools"
 
 
-@pytest.mark.parametrize("escape", ["relative", "absolute", "symlink"])
+@pytest.mark.parametrize("escape", ["relative", "absolute", pytest.param("symlink", marks=pytest.mark.require_symlinks)])
 def test_payload_store_cannot_escape_payload(tmp_path, monkeypatch, escape):
     monkeypatch.delenv("HERMES_RUNTIME_DIR", raising=False)
     payload = tmp_path / "agent-payload"

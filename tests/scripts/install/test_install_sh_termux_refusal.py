@@ -9,6 +9,7 @@ INSTALL_SH = Path(__file__).resolve().parent.parent.parent.parent / "scripts" / 
 
 
 @pytest.mark.parametrize("marker", [{"TERMUX_VERSION": "0.118.0"}, {"PREFIX": "/data/data/com.termux/files/usr"}])
+@pytest.mark.platforms("posix")
 def test_termux_host_is_refused_before_any_stage_with_apt_hint(tmp_path, marker):
     env = {k: v for k, v in os.environ.items() if k not in ("TERMUX_VERSION", "PREFIX")}
     env.update(marker, HOME=tmp_path.as_posix(), HERMES_HOME=(tmp_path / "home").as_posix(),
@@ -20,6 +21,7 @@ def test_termux_host_is_refused_before_any_stage_with_apt_hint(tmp_path, marker)
     assert not (tmp_path / "install").exists()
 
 
+@pytest.mark.platforms("posix")
 def test_plain_linux_host_passes_platform_check(tmp_path):
     env = {k: v for k, v in os.environ.items() if k not in ("TERMUX_VERSION", "PREFIX")}
     env.update(HOME=tmp_path.as_posix(), HERMES_HOME=(tmp_path / "home").as_posix(),

@@ -16,6 +16,7 @@ from tests.scripts.test_release_r2 import r2_server
 
 
 @pytest.mark.parametrize("gh_available", [False, True])
+@pytest.mark.platforms("posix")
 def test_admitted_failure_publishes_tag_info_without_promoting_channel(tmp_path, r2_server, gh_available):
     jobs = _workflow()["jobs"]
     table = tag_summary(jobs)

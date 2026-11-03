@@ -46,7 +46,9 @@ def test_supervisor_spawns_llama_server_without_credentials_but_keeps_runtime_en
 def test_spawn_server_keeps_the_callers_environment(monkeypatch):
     """The generic spawner (bounded_probe_run's git/PowerShell probes) must pass an explicit
     ``env=`` through untouched: a gh-backed credential helper needs GITHUB_TOKEN."""
-    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kwargs: SimpleNamespace(kwargs=kwargs))
+    monkeypatch.setattr(subprocess, "Popen", lambda cmd, **kwargs: SimpleNamespace(kwargs=kwargs, pid=123))
+    monkeypatch.setattr("hermes_cli.local_runtime.processes._WindowsJob", lambda: SimpleNamespace(assign=lambda proc: None))
+    monkeypatch.setattr("hermes_cli.local_runtime.processes.psutil.Process", lambda pid: SimpleNamespace(resume=lambda: None))
     proc, _job = spawn_server(["git", "fetch"], env={"GITHUB_TOKEN": "g", "PATH": "/bin"})
     assert proc.kwargs["env"] == {"GITHUB_TOKEN": "g", "PATH": "/bin"}
 

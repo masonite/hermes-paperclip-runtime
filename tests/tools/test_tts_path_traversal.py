@@ -87,7 +87,7 @@ def test_media_directive_in_path_is_rejected_before_any_echo(tmp_path):
     from gateway.run import _collect_auto_append_media_tags
     from tools.tts_tool import _resolve_output_base
 
-    for bad in (str(tmp_path / "decoy" / "MEDIA:/tmp/evil.txt"), "../MEDIA:/tmp/evil.txt",
+    for bad in ((tmp_path / "decoy" / "MEDIA:/tmp/evil.txt").as_posix(), "../MEDIA:/tmp/evil.txt",
                 "x MEDIA:~/secrets.txt", "x Media:C:/e.txt",
                 # quoted payload: the collector accepts it with no anchor and no extension
                 '../MEDIA:"rel/evil.txt"', "../MEDIA: `rel/evil.txt`"):

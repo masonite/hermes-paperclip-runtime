@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
 
 @pytest.mark.parametrize("materialize_fails", [False, True])
+@pytest.mark.platforms("posix")
 def test_clone_retries_and_publishes_only_materialized_tree(tmp_path, materialize_fails):
     origin = tmp_path / "origin"
     origin.mkdir()
@@ -78,7 +79,7 @@ def _run_repository_stage(installer: str, tmp_path: Path, install: Path, origin_
 
 @pytest.mark.live_system_guard_bypass
 @pytest.mark.parametrize("installer", [
-    "sh",
+    pytest.param("sh", marks=pytest.mark.platforms("posix")),
     pytest.param("ps1", marks=pytest.mark.skipif(POWERSHELL is None, reason="needs PowerShell")),
 ])
 def test_existing_treeless_checkout_is_refetched_before_update(tmp_path, installer):

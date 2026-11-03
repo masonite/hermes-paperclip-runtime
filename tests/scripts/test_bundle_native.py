@@ -575,6 +575,7 @@ def test_native_dispatch_isolates_process_state_on_real_child_failure(tmp_path, 
     assert not list(out.glob(".build-*"))
 
 
+@pytest.mark.require_symlinks
 def test_native_preparation_refuses_symlinked_output_before_writing(tmp_path, monkeypatch):
     monkeypatch.setattr("pm.prepare_tools", lambda *args, **kwargs: pytest.fail("unsafe output reached acquisition"))
     output = tmp_path / "payload"

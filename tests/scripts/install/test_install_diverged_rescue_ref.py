@@ -70,6 +70,7 @@ def _assert_local_commit_parked(repo: Path, local_sha: str, output: str) -> None
     shutil.which("git") is None or shutil.which("bash") is None,
     reason="needs git and bash",
 )
+@pytest.mark.platforms("posix")
 def test_install_sh_repository_stage_parks_local_commits_before_reset(tmp_path: Path) -> None:
     managed, local_sha = _diverged_managed_checkout(tmp_path)
     env = os.environ | {

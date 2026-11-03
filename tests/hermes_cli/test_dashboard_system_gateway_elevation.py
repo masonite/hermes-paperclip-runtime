@@ -12,6 +12,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytestmark = pytest.mark.platforms("linux")
+
 from hermes_cli._launchers import runtime_command
 
 

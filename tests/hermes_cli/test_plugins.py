@@ -164,14 +164,12 @@ class TestPluginDiscovery:
         plugin = home / "plugins" / "portable"
         skill = plugin / "skills" / "summarize"
         skill.mkdir(parents=True)
-        app = tmp_path / "example-app"
-        app.write_text("", encoding="utf-8")
         (plugin / "plugin.json").write_text(
             json.dumps({
                 "$schema": PLUGIN_SCHEMA_V1,
                 "name": "portable.test",
                 "extensions": {"com.nousresearch.hermes": {"servers": {"worker": {
-                    "app": {"darwin": {"presence": "executable", "location": str(app)}},
+                    "app": {"darwin": {"presence": "executable", "location": "/Applications/example-app"}},
                     "requires": {"app": True},
                     "liveness": {"kind": "static"},
                 }}}},

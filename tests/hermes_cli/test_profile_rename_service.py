@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import os
 import platform
-import pwd
 import subprocess
 from pathlib import Path
 
@@ -20,6 +19,7 @@ from hermes_constants import reset_hermes_home_override, set_hermes_home_overrid
 
 @pytest.fixture
 def profile_env(tmp_path, monkeypatch):
+    import pwd
     home = tmp_path / ".hermes"
     home.mkdir()
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -63,6 +63,7 @@ def test_rename_removes_the_old_names_service_while_the_gateway_is_stopped(profi
     assert not _host_unit_path(new_dir).exists()
 
 
+@pytest.mark.platforms("linux")
 def test_rename_moves_the_s6_slot_to_the_new_name(profile_env, monkeypatch):
     class _S6:
         def __init__(self):

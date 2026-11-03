@@ -4,6 +4,7 @@ import argparse
 import os
 import subprocess
 import tempfile
+from pathlib import Path
 
 from hermes_cli.completion import _walk, generate_bash, generate_fish
 
@@ -80,14 +81,14 @@ class TestGenerateBash:
         assert "complete -F _hermes_completion hermes" in out
 
 
-    def test_valid_bash_syntax(self):
+    def test_valid_bash_syntax(self, real_bash):
         """Script must pass `bash -n` syntax check."""
         out = generate_bash(_make_parser())
         with tempfile.NamedTemporaryFile(mode="w", suffix=".bash", delete=False) as f:
             f.write(out)
             path = f.name
         try:
-            result = subprocess.run(["bash", "-n", path], capture_output=True)
+            result = subprocess.run([real_bash, "-n", Path(path).as_posix()], capture_output=True)
             assert result.returncode == 0, result.stderr.decode()
         finally:
             os.unlink(path)

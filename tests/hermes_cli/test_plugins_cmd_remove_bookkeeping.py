@@ -80,6 +80,7 @@ def test_remove_clears_the_toolset_of_a_plugin_without_provides_tools(home):
     assert _config(home)["platform_toolsets"] == {"cli": ["hermes-cli"], "telegram": ["hermes-telegram"]}
 
 
+@pytest.mark.require_symlinks
 def test_remove_of_a_symlink_inside_the_plugins_dir_unlinks_only_the_link(home):
     """A dev alias pointing at a sibling install resolves INSIDE the plugins dir, so the containment
     check passes; removing the alias must not delete the sibling (or its install metadata)."""

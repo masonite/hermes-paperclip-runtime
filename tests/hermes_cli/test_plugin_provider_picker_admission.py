@@ -46,7 +46,7 @@ def test_external_process_plugin_authenticated_flag_tracks_binary_and_catalog_us
     from providers.base import ProviderProfile
     from hermes_cli import models, models_catalog_static
 
-    exe = tmp_path / "acme-acp"
+    exe = tmp_path / ("acme-acp.exe" if os.name == "nt" else "acme-acp")
     exe.write_text("#!/bin/sh\nexit 0\n")
     exe.chmod(exe.stat().st_mode | stat.S_IXUSR)
     profile = ProviderProfile(

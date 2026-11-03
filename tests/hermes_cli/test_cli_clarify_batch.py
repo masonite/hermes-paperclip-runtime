@@ -380,7 +380,7 @@ class TestClarifyBellOnPrompt:
         out = io.StringIO()
         with patch("cli.sys.stdout", out), patch(
             "tools.clarify_gateway.resolve_clarify_timeout", return_value=60
-        ):
+        ), patch("hermes_cli.terminal_notify.write_tty", side_effect=out.write):
             thread = threading.Thread(
                 target=cli._clarify_callback, args=([_q(0, "Color?", ["red", "blue"])],), daemon=True
             )
