@@ -50,6 +50,30 @@ def _probe_root(tmp_path):
     return root
 
 
+def test_workers_ignore_host_git_configuration(tmp_path):
+    root = _probe_root(tmp_path)
+    host_config = tmp_path / "host.gitconfig"
+    host_config.write_text("[hermesTest]\n    host = unexpected\n", encoding="utf-8")
+    probe = root / "test_git_configuration.py"
+    probe.write_text(
+        "import subprocess\n"
+        "def test_configuration():\n"
+        "    host = subprocess.run(['git', 'config', '--get', 'hermesTest.host'], capture_output=True, text=True)\n"
+        "    assert host.returncode == 1 and not host.stdout\n"
+        "    subprocess.run(['git', 'init', '-q'], check=True)\n"
+        "    subprocess.run(['git', 'config', '--local', 'hermesTest.local', 'kept'], check=True)\n"
+        "    local = subprocess.check_output(['git', 'config', '--get', 'hermesTest.local'], text=True)\n"
+        "    assert local.strip() == 'kept'\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts/run_tests_parallel.py"), str(probe), "-j", "1", "--file-retries", "0"],
+        cwd=root, capture_output=True, text=True, timeout=60,
+        env={**os.environ, "GIT_CONFIG_GLOBAL": str(host_config), "GIT_CONFIG_SYSTEM": str(host_config)},
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
 def _pid_alive(pid: int) -> bool:
     """POSIX: send signal 0 to probe whether ``pid`` is still alive.
 
@@ -591,6 +615,7 @@ def test_files_from_dash_reads_the_list_from_stdin(tmp_path: Path) -> None:
     assert "✓2" in proc.stdout or "2 passed" in proc.stdout, proc.stdout
 
 
+@pytest.mark.platforms("posix")
 def test_scratch_root_is_per_user(tmp_path: Path, monkeypatch) -> None:
     """Two users on one host must never share the runner's scratch root.
 

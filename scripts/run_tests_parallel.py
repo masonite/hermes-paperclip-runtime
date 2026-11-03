@@ -640,6 +640,8 @@ def _run_one_file_once(
     # One root for each subprocess removes the shared directory that the race
     # needs. The parent deletes the root after the attempt.
     env = os.environ.copy()
+    # Host line-ending, signing and hook settings must not change fixture repositories.
+    env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
     temproot = tempfile.mkdtemp(prefix="r-", dir=_runner_scratch_root())
     env["PYTEST_DEBUG_TEMPROOT"] = temproot
     # Every tempfile.* call inside the test process lands in the same per-run root, so the
