@@ -865,7 +865,7 @@ class CLIInfoMixin:
         if not cfg_path.exists():
             return
         try:
-            sig = file_signature(cfg_path.stat())
+            sig = file_signature(cfg_path)
         except OSError:
             return
         if sig == self._config_sig:

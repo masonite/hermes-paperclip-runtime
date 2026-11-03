@@ -173,7 +173,7 @@ def _has_named_custom_provider(name: str, home: Path | None, hkey: str) -> bool:
     from utils import file_signature
 
     try:
-        sig = file_signature((home / "config.yaml").stat()) if home is not None else None
+        sig = file_signature(home / "config.yaml") if home is not None else None
     except OSError:
         sig = None  # no readable config: nothing configured, stable until one appears
     memo = _NAMED_CUSTOM_MEMO.get(hkey)

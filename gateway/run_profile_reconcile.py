@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from gateway.run_shutdown import _log_suppressed
-from hermes_platform.file_metadata import stat_file
 from utils import file_signature
 
 logger = logging.getLogger(__name__)
@@ -39,8 +38,7 @@ def profile_serve_signature(home: Path) -> tuple:
     sig = []
     for name in _PROFILE_SIGNATURE_FILES:
         try:
-            st = stat_file(Path(home) / name)
-            sig.append(file_signature(st))
+            sig.append(file_signature(Path(home) / name))
         except OSError:
             sig.append(None)
     return tuple(sig)

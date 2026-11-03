@@ -127,7 +127,7 @@ def _resolve_preset_cached(preset_name: str) -> tuple[dict[str, Any], Any]:
     from hermes_cli.moa_config import resolve_moa_preset
     from utils import file_signature
     try:
-        cfg_stamp = file_signature(get_config_path().stat())
+        cfg_stamp = file_signature(get_config_path())
     except OSError:
         cfg_stamp = None
     moa_raw = load_config().get("moa") or {}

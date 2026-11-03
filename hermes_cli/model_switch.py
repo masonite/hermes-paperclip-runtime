@@ -270,13 +270,13 @@ def _direct_alias_source_identity() -> Optional[tuple]:
     except Exception:
         return None
     try:
-        stat = path.stat()
+        signature = file_signature(path)
     except OSError:
         # A missing config is still a definite identity for this profile.
         return (str(path), None)
     except Exception:
         return None
-    return (str(path), file_signature(stat))
+    return (str(path), signature)
 
 
 def _ensure_direct_aliases() -> None:
