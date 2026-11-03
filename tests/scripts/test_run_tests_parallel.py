@@ -56,14 +56,16 @@ def test_workers_ignore_host_git_configuration(tmp_path):
     host_config.write_text("[hermesTest]\n    host = unexpected\n", encoding="utf-8")
     probe = root / "test_git_configuration.py"
     probe.write_text(
-        "import subprocess\n"
+        "import os, subprocess\n"
         "def test_configuration():\n"
         "    host = subprocess.run(['git', 'config', '--get', 'hermesTest.host'], capture_output=True, text=True)\n"
         "    assert host.returncode == 1 and not host.stdout\n"
         "    subprocess.run(['git', 'init', '-q'], check=True)\n"
         "    subprocess.run(['git', 'config', '--local', 'hermesTest.local', 'kept'], check=True)\n"
         "    local = subprocess.check_output(['git', 'config', '--get', 'hermesTest.local'], text=True)\n"
-        "    assert local.strip() == 'kept'\n",
+        "    assert local.strip() == 'kept'\n"
+        "    if os.name == 'nt':\n"
+        "        assert subprocess.check_output(['git', 'config', '--get', 'core.longpaths'], text=True).strip() == 'true'\n",
         encoding="utf-8",
     )
     result = subprocess.run(

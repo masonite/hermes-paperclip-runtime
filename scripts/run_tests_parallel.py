@@ -643,6 +643,10 @@ def _run_one_file_once(
     # Host line-ending, signing and hook settings must not change fixture repositories.
     env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
     temproot = tempfile.mkdtemp(prefix="r-", dir=_runner_scratch_root())
+    if os.name == "nt":
+        git_config = Path(temproot) / "gitconfig"
+        git_config.write_text("[core]\n    longpaths = true\n", encoding="utf-8")
+        env["GIT_CONFIG_GLOBAL"] = str(git_config)
     env["PYTEST_DEBUG_TEMPROOT"] = temproot
     # Every tempfile.* call inside the test process lands in the same per-run root, so the
     # parent's cleanup of ``temproot`` removes them too instead of leaving them in /tmp.
