@@ -588,6 +588,7 @@ async def test_blocks_canonical_read_denylist_credential_stores(tmp_path: Path, 
     from agent.context_references import preprocess_context_references_async
 
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
 
     hermes_home = tmp_path / ".hermes"

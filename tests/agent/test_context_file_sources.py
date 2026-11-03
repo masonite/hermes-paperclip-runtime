@@ -19,7 +19,7 @@ def project(tmp_path):
 
 
 def _by_label(sources):
-    return {s["label"]: s for s in sources}
+    return {Path(s["label"]).as_posix(): s for s in sources}
 
 
 def test_manifest_matches_what_the_prompt_actually_loads(project, tmp_path_factory):
@@ -41,7 +41,7 @@ def test_manifest_matches_what_the_prompt_actually_loads(project, tmp_path_facto
     sources = list_context_file_sources(cwd=str(sub), home_override=home)
     prompt = build_context_files_prompt(cwd=str(sub), home_override=home)
 
-    statuses = {s["label"]: s["status"] for s in sources}
+    statuses = {label: src["status"] for label, src in _by_label(sources).items()}
     assert statuses == {
         ".hermes.md": "loaded", "../AGENTS.md": "shadowed", "AGENTS.override.md": "empty", "AGENTS.md": "shadowed",
         "CLAUDE.md": "shadowed", ".cursorrules": "shadowed", ".cursor/rules/a.mdc": "shadowed", "SOUL.md": "loaded",
@@ -53,7 +53,8 @@ def test_manifest_matches_what_the_prompt_actually_loads(project, tmp_path_facto
 
     # Same walk, other winner: drop .hermes.md and the whole AGENTS chain loads while the rest stays shadowed.
     (project / ".hermes.md").unlink()
-    statuses = {s["label"]: s["status"] for s in list_context_file_sources(cwd=str(sub), home_override=home)}
+    statuses = {label: src["status"] for label, src in _by_label(
+        list_context_file_sources(cwd=str(sub), home_override=home)).items()}
     prompt = build_context_files_prompt(cwd=str(sub), home_override=home)
     assert statuses["../AGENTS.md"] == statuses["AGENTS.md"] == "loaded" and "root agents rules" in prompt
     assert statuses["CLAUDE.md"] == "shadowed" and "claude rules" not in prompt
