@@ -17,6 +17,7 @@ import pytest
 
 from pm import paths
 from pm import registry
+from pm.filesystem import native
 from pm.lock import Facts, Lockfile
 from pm.store import Store, current_target, tree_digest
 from tests.pm._fixtures import make_tar, served as served
@@ -176,7 +177,7 @@ def test_failed_replacement_preserves_entry_and_facts(pm_env, monkeypatch, route
         elif failure == "verify":
             original_verify = package.verify
             def verify(path, target):
-                if path != entry:
+                if Path(native(path)) != entry:
                     fail()
                 return original_verify(path, target)
             fault.setattr(package, "verify", verify)
@@ -287,7 +288,7 @@ def test_failed_restore_preserves_both_interrupted_versions(pm_env, monkeypatch)
     (entry / "bin" / "faketool").write_text("uncommitted replacement")
     real_rename = Path.rename
     def fail_restore(self, target):
-        if self == previous:
+        if Path(native(self)) == previous:
             raise PermissionError("restore refused")
         return real_rename(self, target)
     monkeypatch.setattr(Path, "rename", fail_restore)

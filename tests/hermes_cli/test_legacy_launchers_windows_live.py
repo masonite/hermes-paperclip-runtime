@@ -41,6 +41,8 @@ def test_status_warns_and_uninstall_removes_pre_suffix_launchers(tmp_path, monke
         [schtasks, "/Create", "/F", "/TN", "Hermes_Gateway", "/SC", "ONLOGON", "/TR", f"wscript.exe //B {legacy_pair}"],
         capture_output=True, text=True, timeout=60,
     )
+    if create.returncode and "Access is denied" in create.stderr:
+        pytest.skip("Scheduled Task creation is denied to this user")
     assert create.returncode == 0, create.stderr
     try:
         gateway_windows.status()

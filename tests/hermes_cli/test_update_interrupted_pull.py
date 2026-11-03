@@ -18,6 +18,7 @@ import pytest
 
 from hermes_cli import _early_recovery as er
 from hermes_cli import update_cmd
+from tests.hermes_cli.update_fault_fixtures import patch_update_run
 
 
 def _git(root: Path, *args: str) -> str:
@@ -162,7 +163,7 @@ def test_restore_runs_the_installers_store_git_when_path_has_none(checkout, monk
     root, a, b = checkout
     (root / "utils.py").write_text("NEW = 1\n", encoding="utf-8", newline="")  # the killed ff's first write
     (root / ".git" / "index.lock").write_bytes(b"")  # left by the killed git
-    dead = subprocess.Popen([sys.executable, "-c", "pass"])
+    dead = subprocess.Popen([sys._base_executable, "-c", "pass"])
     dead.wait()
     er.interrupted_pull_marker(root).write_text(f"pid={dead.pid}\npre={a}\ntarget={b}\nstash=\n", encoding="utf-8")
 
@@ -170,16 +171,28 @@ def test_restore_runs_the_installers_store_git_when_path_has_none(checkout, monk
     store = tmp_path / "tools"
     version = pm.Lockfile(pm.paths.lockfile_path()).version("git")
     staged = store / f"git-{version}-win32-x64" / "cmd" / "git.exe"
-    staged.parent.mkdir(parents=True)
-    calls = tmp_path / "staged-git-calls"
-    staged.write_text(f'#!/bin/sh\necho "$@" >> "{calls}"\nexec "{real_git}" "$@"\n', encoding="utf-8")
-    staged.chmod(0o755)
+    if os.name == "nt":
+        import _winapi
+        git_root = next(parent for parent in Path(real_git).parents if (parent / "cmd/git.exe").is_file())
+        store.mkdir()
+        _winapi.CreateJunction(str(git_root), str(staged.parent.parent))
+    else:
+        staged.parent.mkdir(parents=True)
+        shutil.copy2(real_git, staged)
+    calls = []
+
+    def observe(run, argv, *args, **kwargs):
+        if argv and os.path.normcase(str(argv[0])) == os.path.normcase(str(staged)):
+            calls.append(argv)
+        return run(argv, *args, **kwargs)
+
+    patch_update_run(monkeypatch, observe)
     with monkeypatch.context() as windows:
         windows.setattr(pm.paths, "store_root", lambda: store)
         windows.setattr(pm, "current_target", lambda: "win32-x64")
         windows.setenv("PATH", str(tmp_path / "no-git-here"))
         assert er.restore_interrupted_pull(root) is True
-    assert calls.read_text(encoding="utf-8-sig").count("rev-parse HEAD") >= 1, "the store's git ran the restore"
+    assert any("rev-parse" in call and "HEAD" in call for call in calls), "the store's git ran the restore"
     assert _git(root, "rev-parse", "HEAD") == a and _git(root, "status", "--porcelain") == ""
     assert not (root / ".git" / "index.lock").exists() and not er.interrupted_pull_marker(root).exists()
     _pull(root)  # the next `hermes update` is not refused on the lock
@@ -591,14 +604,12 @@ def test_an_empty_head_answer_keeps_the_marker(tmp_path, monkeypatch, capsys):
     stub = tmp_path / "silent-git"
     stub.write_text("", encoding="utf-8")
     monkeypatch.setattr(er, "_git_executable", lambda recorded="": str(stub))
-    real_run = subprocess.run
-
-    def silent(argv, *args, **kwargs):  # every git call "succeeds" with no output
+    def silent(real_run, argv, *args, **kwargs):  # every git call "succeeds" with no output
         if argv and argv[0] == str(stub):
             return subprocess.CompletedProcess(argv, 0, "", "")
         return real_run(argv, *args, **kwargs)
 
-    monkeypatch.setattr(subprocess, "run", silent)
+    patch_update_run(monkeypatch, silent)
     assert er.restore_interrupted_pull(root) is False
     assert marker.exists(), "an empty `rev-parse HEAD` deleted the marker over a torn tree"
     assert "Could not read HEAD" in capsys.readouterr().err

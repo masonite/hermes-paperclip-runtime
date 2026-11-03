@@ -142,6 +142,7 @@ def test_repair_does_not_mask_unrelated_object_loss(tmp_path):
     victim = git(clone, "rev-parse", "HEAD~1").stdout.strip()
     loose = clone / ".git" / "objects" / victim[:2] / victim[2:]
     assert loose.is_file(), "expected a loose object to delete"
+    loose.chmod(0o600)
     loose.unlink()
     assert gitlock.repair_broken_shallow_boundaries(clone) == 0
     fsck = git(clone, "fsck", "--connectivity-only", check=False)
@@ -158,7 +159,9 @@ def test_failed_shallow_maintenance_restores_original_bytes(tmp_path, caplog, op
     git(clone, "commit", "--allow-empty", "-qm", "local1")
     git(clone, "commit", "--allow-empty", "-qm", "local2")
     victim = git(clone, "rev-parse", "HEAD~1").stdout.strip()
-    (clone / ".git/objects" / victim[:2] / victim[2:]).unlink()
+    loose = clone / ".git/objects" / victim[:2] / victim[2:]
+    loose.chmod(0o600)
+    loose.unlink()
     shallow = clone / ".git/shallow"
     # A failed self-check must restore even noncanonical line endings verbatim.
     original = shallow.read_bytes().replace(b"\n", b"\r\n")

@@ -414,6 +414,10 @@ class MCPServerTransportMixin:
                     return await self._serve_session(session, connect_timeout, mark_lifecycle=True)
         except Exception as exc:
             # The SDK only sees "Connection closed"; the child's stderr says why (#124264).
+            from tools.mcp_tool_errors import _iter_exception_nodes
+            for cause in _iter_exception_nodes(exc):
+                if isinstance(cause, FileNotFoundError) and cause.filename is None:
+                    cause.filename = command
             abi_error = node_abi_error(self.name, await asyncio.to_thread(stderr.close))
             if abi_error is not None:
                 raise abi_error from exc

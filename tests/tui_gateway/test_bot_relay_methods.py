@@ -573,7 +573,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 
 def _child_argv(monkeypatch, body: str) -> dict:
     """Stand in a Python child for the ``hermes`` transport; it imports ``hermes_cli`` from this checkout."""
-    argv = [sys.executable, "-c", textwrap.dedent(body)]
+    argv = [sys._base_executable, "-c", textwrap.dedent(body)]
     monkeypatch.setattr(bot_relay, "local_delivery_command", lambda prof, tmp: argv)
     return {**os.environ, "PYTHONPATH": os.pathsep.join(p for p in (_REPO_ROOT, os.environ.get("PYTHONPATH")) if p)}
 

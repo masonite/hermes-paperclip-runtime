@@ -88,8 +88,8 @@ class TestLocalEnvironmentExecute:
 
     def test_cat_deterministic_content(self, env, tmp_path):
         f = tmp_path / "det.txt"
-        f.write_text(SIMPLE_CONTENT)
-        result = env.execute(f"cat {f}")
+        f.write_text(SIMPLE_CONTENT, newline="\n")
+        result = env.execute(f"cat '{f.as_posix()}'")
         assert result["returncode"] == 0
         assert result["output"] == SIMPLE_CONTENT
         _assert_clean(result["output"])
@@ -172,7 +172,8 @@ class TestSearch:
 class TestExpandPath:
     def test_tilde_exact(self, ops):
         result = ops._expand_path("~/test.txt")
-        expected = f"{Path.home()}/test.txt"
+        from tools.environments.local import _bash_safe_path
+        expected = f"{_bash_safe_path(str(Path.home()))}/test.txt"
         assert result == expected
         _assert_clean(result)
 

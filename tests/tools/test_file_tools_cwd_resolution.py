@@ -91,6 +91,7 @@ def test_absolute_terminal_cwd_used_verbatim(_isolated_cwd, monkeypatch):
     assert resolved == (workspace / "target.py")
 
 
+@pytest.mark.require_symlinks
 def test_container_absolute_input_path_does_not_follow_host_symlink(tmp_path, monkeypatch):
     """Docker paths are sandbox-local and must not be host-dereferenced.
 
@@ -120,6 +121,7 @@ def test_container_path_normalization_uses_posix_path_syntax():
     assert str(resolved) == "/workspace/projects/bar"
 
 
+@pytest.mark.require_symlinks
 def test_container_relative_path_keeps_container_cwd_symlink(tmp_path, monkeypatch):
     """Relative Docker paths should stay under the container cwd textually."""
     host_project = tmp_path / "host-project"
@@ -162,8 +164,8 @@ def test_warning_fires_when_relative_path_escapes_workspace(_isolated_cwd, monke
     warn = ftp._path_resolution_warning("target.py", resolved_in_decoy, task_id="default")
 
     assert warn is not None
-    assert str(decoy) in warn
-    assert str(workspace) in warn
+    assert repr(str(resolved_in_decoy)) in warn
+    assert repr(str(workspace)) in warn
 
 
 # ── Fix C: sentinel TERMINAL_CWD + empty-registry worktree anchoring ─────────
@@ -194,7 +196,7 @@ def test_warning_fires_from_terminal_cwd_when_registry_empty(_isolated_cwd, monk
     warn = ftp._path_resolution_warning(escaping, resolved, task_id="default")
 
     assert warn is not None
-    assert str(workspace) in warn
+    assert repr(str(workspace)) in warn
 
 
 # ── Cross-session isolation: one session's cwd never leaks into another ──────
@@ -315,6 +317,7 @@ def test_v4a_patch_applies_to_resolved_workspace_not_backend_cwd(
     # only the target would let the delete remove an entry outside the root.
     ("*** Delete File: local.yaml", True, "shared: true\n", None),
 ])
+@pytest.mark.require_symlinks
 def test_v4a_delete_and_move_act_on_a_symlink_not_its_target(
         _isolated_cwd, monkeypatch, header, safe_root, content, dest):
     """Delete and Move act on the directory entry. Resolving a symlinked header to its

@@ -85,7 +85,7 @@ def test_launcher_skips_user_cache_redirect_when_marker_present(tmp_path):
     (payload / MARKER).write_text("unchecked-hash\n")
     here = payload / "bin"
     here.mkdir()
-    environ = {"HOME": str(tmp_path / "userhome")}
+    environ = {"HOME": str(tmp_path / "userhome"), "LOCALAPPDATA": str(tmp_path / "appdata")}
     original = sys.pycache_prefix
     try:
         ns["configure"](str(here), environ=environ)
@@ -102,11 +102,12 @@ def test_launcher_keeps_user_cache_redirect_without_marker(tmp_path):
     payload = _make_payload(tmp_path)
     here = payload / "bin"
     here.mkdir()
-    environ = {"HOME": str(tmp_path / "userhome")}
+    environ = {"HOME": str(tmp_path / "userhome"), "LOCALAPPDATA": str(tmp_path / "appdata")}
     original = sys.pycache_prefix
     try:
         ns["configure"](str(here), environ=environ)
-        assert environ["PYTHONPYCACHEPREFIX"] == str(
-            tmp_path / "userhome" / ".cache" / "hermes-pycache")
+        expected = (tmp_path / "appdata" / "hermes" / "pycache" if sys.platform == "win32"
+                    else tmp_path / "userhome" / ".cache" / "hermes-pycache")
+        assert Path(environ["PYTHONPYCACHEPREFIX"]) == expected
     finally:
         sys.pycache_prefix = original

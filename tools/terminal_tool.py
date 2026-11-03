@@ -21,6 +21,7 @@ import/patch target): ``terminal_tool_config`` (TERMINAL_* reads, ``_quiet``),
 import json
 import logging
 import os
+import posixpath
 import sys
 import time
 import threading
@@ -591,10 +592,8 @@ def _resolve_task_host_cwd(config: dict[str, Any], task_id: Optional[str]) -> Op
     fresh session's mount from it would leak the previous session's directory.
     Overrides tagged ``cwd_source: "process"`` are refused for the same reason;
     ``cwd_source: "session"`` or untagged (ACP/RL) overrides mount.
-    A Windows drive path is not a mount source while the cwd-to-/workspace flag
-    is off. A raw host override must stay out of ``docker run -w`` and fall
-    back to the sanitized config cwd. The Windows bind, including when
-    ``/workspace`` is already claimed, is the volume mount, not this override.
+    The mount flag controls Windows drive paths too. Recognize POSIX container
+    roots before native host expansion, which adds a drive letter on Windows.
     """
     if config.get("env_type") != "docker" or not config.get("docker_mount_cwd_to_workspace"):
         return None
@@ -604,6 +603,8 @@ def _resolve_task_host_cwd(config: dict[str, Any], task_id: Optional[str]) -> Op
     overrides = resolve_task_overrides(task_id)
     candidate = overrides.get("cwd")
     if overrides.get("cwd_source") == "process" or not isinstance(candidate, str) or not candidate.strip():
+        return None
+    if posixpath.normpath(candidate).startswith(("/workspace", "/root")):
         return None
     candidate = os.path.abspath(os.path.expanduser(candidate))
     # Must exist on the host and not already be an in-container path.

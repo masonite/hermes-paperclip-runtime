@@ -167,7 +167,7 @@ def test_external_browser_on_path_remains_supported_without_pm(browser_store, mo
     binary.write_text(f"#!{sys.executable}\nprint('external-agent-browser')\n")
     binary.chmod(0o755)
     monkeypatch.setenv("PATH", str(bin_dir))
-    assert install._find_agent_browser(validate=False) == str(binary)
+    assert os.path.normcase(install._find_agent_browser(validate=False)) == os.path.normcase(str(binary))
     assert install._find_agent_browser() == str(binary)
     assert not store.exists()
 
@@ -208,7 +208,7 @@ def test_restricted_path_discovers_external_browser_without_execution(browser_st
 
     monkeypatch.setattr("subprocess.Popen", forbidden)
     monkeypatch.setattr(pm, "ensure", forbidden)
-    assert install._find_agent_browser(validate=False) == str(binary)
+    assert Path(install._find_agent_browser(validate=False)) == binary
     assert not store.exists()
 
 

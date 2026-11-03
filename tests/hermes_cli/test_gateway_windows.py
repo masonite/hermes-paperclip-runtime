@@ -70,6 +70,8 @@ def test_exec_schtasks_round_trips_non_ascii_task_argument_live(monkeypatch):
         ["schtasks", "/Create", "/F", "/TN", task, "/SC", "ONLOGON", "/TR", f'wscript.exe //B "C:\\{marker}\\x.vbs"'],
         capture_output=True, timeout=30,
     )
+    if created.returncode and b"Access is denied" in created.stderr:
+        pytest.skip("Scheduled Task creation is denied to this user")
     assert created.returncode == 0, created.stderr
     try:
         code, out, _err = gateway_windows._exec_schtasks(["/Query", "/TN", task, "/XML"])

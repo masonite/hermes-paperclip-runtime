@@ -112,6 +112,7 @@ def _discover_and_call(homes: dict, tool: str, args: dict) -> dict:
     return results
 
 
+@pytest.mark.platforms("posix")
 def test_profile_with_other_secret_source_value_gets_its_own_stdio_connection(two_profile_homes, tmp_path):
     server = tmp_path / "gh_server.py"
     server.write_text(textwrap.dedent(_STDIO_SERVER), encoding="utf-8")
@@ -119,7 +120,7 @@ def test_profile_with_other_secret_source_value_gets_its_own_stdio_connection(tw
         (home / "secrets.env").write_text(f"GH_TOKEN=fake-token-{name}\n", encoding="utf-8")
         (home / "config.yaml").write_text(yaml.safe_dump({
             "model": _MODEL,
-            "secrets": {"command": {"enabled": True, "command": f"cat {home / 'secrets.env'}"}},
+            "secrets": {"command": {"enabled": True, "command": f"cat '{(home / 'secrets.env').as_posix()}'"}},
             "mcp_servers": {"gh": {"command": sys.executable, "args": [str(server)]}}}), encoding="utf-8")
 
     results = _discover_and_call(two_profile_homes, "mcp__gh__whoami", {})

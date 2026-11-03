@@ -24,6 +24,7 @@ from plugins.memory.holographic import HolographicMemoryProvider, _load_plugin_c
 def root(tmp_path, monkeypatch):
     # A ``~/`` path is displayed through Path.home() and expanded through HOME; both name the sandbox.
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     home = tmp_path / ".hermes"
     home.mkdir()

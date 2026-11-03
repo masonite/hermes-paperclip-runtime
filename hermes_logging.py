@@ -451,6 +451,8 @@ class _ManagedRotatingFileHandler(RotatingFileHandler):
         # so skip the write (the router re-routes the record) instead of a FileNotFoundError traceback.
         self._skip_write_when_dir_missing = False
         self.skipped_missing_dir = False
+        if sys.platform == "win32" and not _WINDOWS_CLH_FALLBACK:
+            kwargs.setdefault("keep_file_open", False)
         super().__init__(*args, **kwargs)
         self._record_stream_stat()
 

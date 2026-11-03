@@ -44,8 +44,17 @@ def stage_host_python(python: Path) -> Path:
     tree); site-packages and the test suite stay out. Production's package stage ships the whole
     distribution.
     """
+    if os.name == "nt":
+        python = python.with_suffix(".exe")
     python.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(Path(sys._base_executable).resolve(), python)
+    if os.name == "nt":
+        for dll in Path(sys.base_prefix).glob("*.dll"):
+            shutil.copy2(dll, python.parent / dll.name)
+        for directory in ("Lib", "DLLs"):
+            shutil.copytree(Path(sys.base_prefix) / directory, python.parent / directory,
+                            ignore=shutil.ignore_patterns("site-packages", "test", "__pycache__", "idlelib", "tkinter"))
+        return python
     host_lib = Path(sys.base_prefix) / "lib"
     stdlib = next((d for d in host_lib.glob("python3.*") if (d / "os.py").is_file()), None)
     if stdlib is not None and not (python.parent.parent / "lib" / stdlib.name).exists():

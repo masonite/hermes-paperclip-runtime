@@ -249,7 +249,7 @@ def test_turn_report_books_the_delivery_while_the_child_still_lingers(tmp_path):
     try:
         with mock.patch.object(sched_delivery.subprocess, "Popen", side_effect=spy):
             result = sched_delivery._run_bot_chat_turn(
-                [sys.executable, "-c", child], {**_child_env(), TURN_REPORT_FILE_ENV: str(report)}, str(report), timeout=10)
+                [sys._base_executable, "-c", child], {**_child_env(), TURN_REPORT_FILE_ENV: str(report)}, str(report), timeout=10)
         elapsed = time.monotonic() - started
         assert result.returncode == 0
         assert elapsed < 8, elapsed
@@ -278,7 +278,7 @@ def test_delivery_child_runs_in_the_target_home_not_the_schedulers_cwd(tmp_path,
         write_turn_report(os.environ.pop(TURN_REPORT_FILE_ENV), exit_code=0)
         """)
     env = {**_child_env(), "HERMES_HOME": str(home), TURN_REPORT_FILE_ENV: str(report)}
-    result = sched_delivery._run_bot_chat_turn([sys.executable, "-c", child], env, str(report), timeout=30)
+    result = sched_delivery._run_bot_chat_turn([sys._base_executable, "-c", child], env, str(report), timeout=30)
     assert result.returncode == 0, result.stderr
     assert result.stdout.strip() == os.path.realpath(home)
 
@@ -288,7 +288,7 @@ def test_turn_that_never_ends_is_still_killed_at_the_cap(tmp_path):
     started = time.monotonic()
     with pytest.raises(subprocess.TimeoutExpired):
         sched_delivery._run_bot_chat_turn(
-            [sys.executable, "-c", "import time; time.sleep(30)"], _child_env(), str(tmp_path / "turn.json"), timeout=1)
+            [sys._base_executable, "-c", "import time; time.sleep(30)"], _child_env(), str(tmp_path / "turn.json"), timeout=1)
     assert time.monotonic() - started < 8
 
 
@@ -300,7 +300,7 @@ def test_bot_chat_turn_failure_tail_decodes_lossily(tmp_path):
     vanishing when the drain thread dies at the first undecodable byte (#105582)."""
     child = "import os, sys; os.write(2, b'boom before \\x80 after\\n'); sys.exit(1)"
     result = sched_delivery._run_bot_chat_turn(
-        [sys.executable, "-c", child], _child_env(), str(tmp_path / "turn.json"), timeout=15)
+        [sys._base_executable, "-c", child], _child_env(), str(tmp_path / "turn.json"), timeout=15)
 
     assert result.returncode == 1
     assert result.stderr == "boom before \ufffd after\n"

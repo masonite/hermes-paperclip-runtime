@@ -104,7 +104,8 @@ try {
     # 1. Same path for both: refused, before any download.
     $r = Invoke-ResolvedPaths @('-HermesHome', $home1, '-InstallDir', $home1)
     Assert-True ($r.ExitCode -ne 0) 'same HermesHome and InstallDir is refused (non-zero exit)'
-    Assert-True ($r.All -match 'tool store would land inside the checkout') 'refusal names the tool-store cause'
+    $plainError = ($r.All -replace '\x1b\[[0-9;]*m', '') -replace '\r?\n\s*\|?\s*', ' '
+    Assert-True ($plainError -match 'tool store would land inside the checkout') 'refusal names the tool-store cause'
 
     # 2. HermesHome nested inside InstallDir: refused for the same reason.
     $r = Invoke-ResolvedPaths @('-HermesHome', $insideHome, '-InstallDir', $insideDir)

@@ -11,6 +11,7 @@ import sys
 import pytest
 
 from pm._uv import _toolchain
+from pm.filesystem import native
 from pm.lock import Facts, Lockfile
 from pm.package import InstallError
 from pm.packages import Python, Uv
@@ -116,7 +117,7 @@ def test_project_environment_replaces_generation_when_pinned_python_moves(instal
                  artifacts=[digest], digest=tree_digest(uv.parent))
 
     class FixturePython(Python):
-        binary_rel = {"win32": "Scripts/python.exe", "posix": "bin/python"}
+        binary_rel = {"win32": "bin/python.exe", "posix": "bin/python"}
 
     monkeypatch.setitem(registry._packages, "python", FixturePython())
     interpreters = [stage_host_python(store / name / "bin" / "python")
@@ -142,8 +143,9 @@ def test_project_environment_replaces_generation_when_pinned_python_moves(instal
         selected = operations.ensure_project_environment(
             "test-environment", project, root=selection_root, explicit=True)
         chosen.append(selected)
+        expected_prefix = _run([str(interpreter), "-I", "-c", "import sys; print(sys.base_prefix)"], cwd=project, env=env)
         assert Path(_run([str(selected), "-I", "-c",
-                          "import sys, side_dep; print(sys.base_prefix)"], cwd=project, env=env)) == interpreter.parent.parent
+                          "import sys, side_dep; print(sys.base_prefix)"], cwd=project, env=env)) == Path(expected_prefix)
         assert (project / "uv.lock").read_bytes() == locked
     assert chosen[0] != chosen[1] != chosen[2]
 
@@ -286,7 +288,7 @@ def test_copy_failure_preserves_previous_python(installed_uv, monkeypatch, damag
     elif damage == "copy":
         def damaged_copy(src, dest, *args, **kwargs):
             result = copytree(src, dest, *args, **kwargs)
-            if Path(src) == source:
+            if Path(native(src)) == source:
                 (dest / binary_rel).write_bytes(b"damaged copy")
             return result
         monkeypatch.setattr(shutil, "copytree", damaged_copy)

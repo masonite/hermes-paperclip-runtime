@@ -233,10 +233,12 @@ class TestSessionScopedMountResolution:
         cfg = self._config()
         assert terminal_tool._resolve_task_host_cwd(cfg, "tui:sess-new") is None
 
-    def test_isolation_rejects_in_container_path_as_mount(self, monkeypatch):
+    @pytest.mark.parametrize("container_cwd", ["/workspace", "/root", "/tmp/../workspace", "/tmp/../root"])
+    def test_isolation_rejects_in_container_path_as_mount(self, monkeypatch, container_cwd):
         _enable_isolation(monkeypatch)
+        monkeypatch.setattr(terminal_tool.os.path, "isdir", lambda path: True)
         terminal_tool.register_task_env_overrides(
-            "tui:sess-new", {"cwd": "/workspace", "cwd_source": "session"}
+            "tui:sess-new", {"cwd": container_cwd, "cwd_source": "session"}
         )
         cfg = self._config()
         assert terminal_tool._resolve_task_host_cwd(cfg, "tui:sess-new") is None

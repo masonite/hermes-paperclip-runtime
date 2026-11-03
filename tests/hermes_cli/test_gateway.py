@@ -520,6 +520,7 @@ class TestRestartWaitsForApiServerPort:
     def test_port_is_reported_free_once_the_old_listener_closes(self):
         import socket
         import threading
+        from hermes_cli.gateway_readiness import wait_for_tcp_port_free
 
         listener = socket.socket()
         listener.bind(("127.0.0.1", 0))
@@ -527,7 +528,7 @@ class TestRestartWaitsForApiServerPort:
         port = listener.getsockname()[1]
         threading.Timer(0.3, listener.close).start()
 
-        assert gateway._wait_for_tcp_port_free("127.0.0.1", port, timeout=5.0) is True
+        assert wait_for_tcp_port_free("127.0.0.1", port, timeout=5.0) is True
 
     def test_wait_targets_the_configured_api_server_port_only_when_enabled(self, monkeypatch):
         import socket
@@ -645,6 +646,7 @@ class TestStopProfileGateway:
         assert gateway.stop_profile_gateway() is True
         assert calls == [(pid, True, 100)]
 
+    @pytest.mark.platforms("posix")
     def test_stop_profile_gateway_keeps_pid_file_when_process_still_running(self, monkeypatch):
         calls = {"kill": 0, "alive_probes": 0, "remove": 0, "reap_calls": 0}
 

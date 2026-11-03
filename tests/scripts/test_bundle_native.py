@@ -19,6 +19,7 @@ import pytest
 from scripts.bundles import native
 
 
+@pytest.mark.require_symlinks
 def test_bundle_stages_git_tree_and_runs_native_children_before_manifest(tmp_path, monkeypatch):
     import importlib
     import inspect

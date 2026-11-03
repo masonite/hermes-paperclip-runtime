@@ -14,8 +14,7 @@ The systemd branch of the same phase has never drawn that inference: it polls
 never came back into ``failed_or_stale_units``, which is what makes the update
 exit non-zero.  These tests pin the same contract for launchd.
 
-No macOS hardware is involved: every case drives the seam through mocked
-``launchctl`` outcomes.
+macOS platform support is required; ``launchctl`` outcomes are mocked.
 """
 
 from __future__ import annotations
@@ -200,6 +199,7 @@ def _run_fleet_restart():
     update_cmd._restart_macos_launchd_gateways(restarted, failed_or_stale, 5.0)
     return restarted, failed_or_stale
 
+@pytest.mark.platforms("macos")
 class TestInvokingProfileIsVerifiedLikeItsSiblings:
     """The sibling loop already polls for a fresh supervised pid before
     counting a label as restarted.  The invoking profile did not, so the two

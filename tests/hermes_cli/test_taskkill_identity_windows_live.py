@@ -23,7 +23,7 @@ pytestmark = pytest.mark.platforms("windows")  # live taskkill-identity probes a
 
 def _spawn_sleeper(seconds: int = 60) -> subprocess.Popen:
     return subprocess.Popen(
-        [sys.executable, "-c", f"import time; time.sleep({seconds})"],
+        [sys._base_executable, "-c", f"import time; time.sleep({seconds})"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         stdin=subprocess.DEVNULL,

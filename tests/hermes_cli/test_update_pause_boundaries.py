@@ -38,7 +38,7 @@ def cell(tmp_path):
 
     def launch(code, *args):
         script = tmp_path / f"child-{len(children)}.py"
-        script.write_text(textwrap.dedent('''
+        script.write_text(f"import sys; sys.path[:] = {sys.path!r}\n" + textwrap.dedent('''
             import importlib.util, json, os, sys, time
             from pathlib import Path
             root = Path(sys.argv[1])
@@ -47,7 +47,7 @@ def cell(tmp_path):
             sys.modules[spec.name] = r
             spec.loader.exec_module(r)
         ''') + textwrap.dedent(code), encoding="utf-8")
-        proc = subprocess.Popen([sys.executable, str(script), str(root), *map(str, args)],
+        proc = subprocess.Popen([sys._base_executable, str(script), str(root), *map(str, args)],
                                 cwd=tmp_path, env=env, stdin=subprocess.DEVNULL,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         children.append(proc)

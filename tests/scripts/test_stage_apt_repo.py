@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 from tests.termux_fixtures import build_deb
+from pm.filesystem import long_root
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO_ROOT / "scripts" / "termux"
@@ -38,7 +39,7 @@ def no_gpg(monkeypatch):
 
 
 def _stage(pool: Path, out: Path, suite: str, pool_subdir: str = "") -> int:
-    args = ["--pool", str(pool), "--out", str(out), "--suite", suite]
+    args = ["--pool", str(pool), "--out", str(long_root(out)), "--suite", suite]
     if pool_subdir:
         args += ["--pool-subdir", pool_subdir]
     return stage_apt_repo.main(args)
@@ -56,7 +57,7 @@ def test_pool_subdir_is_in_the_path_and_the_index(tmp_path):
     pool = tmp_path / "pool-in"
     pool.mkdir()
     make_deb(pool / "hermes-agent_0.21.5_aarch64.deb", "hermes-agent", "0.21.5-1")
-    out = tmp_path / "repo"
+    out = long_root(tmp_path / "repo")
     assert _stage(pool, out, "hermes-stable", pool_subdir="rc.2-v0.21.5") == 3
     deb = out / "pool" / "rc.2-v0.21.5" / "h" / "hermes-agent_0.21.5_aarch64.deb"
     assert deb.is_file()
@@ -67,7 +68,7 @@ def test_no_pool_subdir_keeps_the_plain_layout(tmp_path):
     pool = tmp_path / "pool-in"
     pool.mkdir()
     make_deb(pool / "hermes-agent_1.2.3_aarch64.deb", "hermes-agent", "1.2.3-1")
-    out = tmp_path / "repo"
+    out = long_root(tmp_path / "repo")
     assert _stage(pool, out, "hermes-canary") == 3
     assert (out / "pool" / "h" / "hermes-agent_1.2.3_aarch64.deb").is_file()
     assert _pool_keys(out, "hermes-canary") == {"pool/h/hermes-agent_1.2.3_aarch64.deb"}
@@ -80,7 +81,7 @@ def test_two_attempts_of_one_version_use_different_pool_keys(tmp_path):
         pool = root / "pool-in"
         pool.mkdir(parents=True)
         make_deb(pool / "hermes-agent_0.21.5_aarch64.deb", "hermes-agent", "0.21.5-1")
-        out = root / "repo"
+        out = long_root(root / "repo")
         assert _stage(pool, out, "hermes-stable", pool_subdir=attempt) == 3
         keys |= {attempt} & {k.split("/")[1] for k in _pool_keys(out, "hermes-stable")}
     assert keys == {"rc.1-v0.21.5", "rc.2-v0.21.5"}
@@ -117,7 +118,7 @@ def test_unsigned_multiversion_publication_and_immutable_indexes(tmp_path, capsy
     versions = ["1.2.3~canary.20260901000000-1", "1.2.3-1"]
     for filename, version, compression in zip(("a.deb", "b.deb"), versions, ("gz", "xz")):
         make_deb(pool / filename, "hermes-agent", version, compression=compression)
-    out = tmp_path / "repo"
+    out = long_root(tmp_path / "repo")
     args = ["--pool", str(pool), "--out", str(out), "--suite", "hermes-canary"]
     assert stage_apt_repo.main(args) == 3
     binary = out / "dists/hermes-canary/main/binary-aarch64"
@@ -160,7 +161,7 @@ def test_unsigned_release_exit_3_without_gpg(tmp_path, no_gpg):
     pool = tmp_path / "pool-in"
     pool.mkdir()
     make_deb(pool / "hermes-agent_1.2.3-1_aarch64.deb", "hermes-agent", "1.2.3-1")
-    out = tmp_path / "repo"
+    out = long_root(tmp_path / "repo")
     code = stage_apt_repo.main(
         ["--pool", str(pool), "--out", str(out), "--suite", "hermes-canary"]
     )
@@ -252,7 +253,7 @@ def test_real_gpg_signs_and_published_public_key_verifies(tmp_path, monkeypatch,
     pool = tmp_path / "pool-in"
     pool.mkdir()
     make_deb(pool / "h.deb", "hermes-agent", "1.2.3-1")
-    out = tmp_path / "repo"
+    out = short_home(prefix="apt-test-out-")
     assert stage_apt_repo.main(
         ["--pool", str(pool), "--out", str(out),
          "--suite", "hermes-nightly", "--gpg-key-file", str(keyfile)]
@@ -314,7 +315,7 @@ def test_real_gpg_tampered_metadata_fails_closed(tmp_path, monkeypatch, short_ho
     pool = tmp_path / "pool-in"
     pool.mkdir()
     make_deb(pool / "h.deb", "hermes-agent", "1.2.3-1")
-    out = tmp_path / "repo"
+    out = short_home(prefix="apt-test-out-")
     real_gpg = stage_apt_repo._gpg_run
 
     def tamper_after_sign(home, args, **kwargs):
@@ -353,7 +354,7 @@ def test_multi_key_import_is_rejected_not_first_key_used(tmp_path, monkeypatch, 
     pool = tmp_path / "pool-in"
     pool.mkdir()
     make_deb(pool / "h.deb", "hermes-agent", "1.2.3-1")
-    out = tmp_path / "repo"
+    out = short_home(prefix="apt-test-out-")
     with pytest.raises(SystemExit) as ei:
         stage_apt_repo.main(
             ["--pool", str(pool), "--out", str(out),

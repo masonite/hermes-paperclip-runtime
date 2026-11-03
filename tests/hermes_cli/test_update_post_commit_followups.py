@@ -199,7 +199,7 @@ def test_owed_restart_rearms_a_settled_obligation_and_a_later_run_keeps_owing_it
     assert fleet._fleet_restart_obligation_armed()
 
 
-def test_followup_line_is_the_one_both_desktop_handoffs_parse(tmp_path, monkeypatch, capsys):
+def test_followup_line_is_the_one_both_desktop_handoffs_parse(tmp_path, monkeypatch, capsys, real_bash):
     """The hand-offs read owed follow-ups from this printed line (review regression 1): pin the
     producer against the exact parsers in posix.sh (sed) and windows.ps1 (.NET regex)."""
     import re
@@ -212,7 +212,7 @@ def test_followup_line_is_the_one_both_desktop_handoffs_parse(tmp_path, monkeypa
     scripts = Path(__file__).resolve().parents[2] / "scripts/desktop-update"
     posix = (scripts / "posix.sh").read_text(encoding="utf-8")
     function = re.search(r"^owed_followup_steps\(\) \{.*?^\}", posix, re.DOTALL | re.MULTILINE).group(0)
-    steps = subprocess.run(["bash", "-c", f"{function}\nowed_followup_steps"], env={**os.environ, "OUT": out},
+    steps = subprocess.run([real_bash, "-c", f"{function}\nowed_followup_steps"], env={**os.environ, "OUT": out},
                            capture_output=True, text=True, encoding="utf-8", check=True).stdout.strip()
     assert steps == "gateway_restart windows_resume"
     pattern = re.search(r"\[regex\]::Matches\(\(\$res\.Output -join \"`n\"\), \"([^\"]+)\"\)",

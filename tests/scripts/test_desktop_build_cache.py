@@ -122,6 +122,7 @@ def test_foreign_workspace_paths_cannot_expand_the_snapshot(tmp_path, workspace)
         describe_cache(source, tmp_path / "cache", "test")
 
 
+@pytest.mark.require_symlinks
 def test_cache_roots_cannot_select_private_state_or_follow_workspace_symlinks(tmp_path, monkeypatch):
     from scripts.ci.desktop_build_cache import describe_cache
 
@@ -141,7 +142,7 @@ def test_cache_roots_cannot_select_private_state_or_follow_workspace_symlinks(tm
         describe_cache(source, tmp_path / "cache", "test")
 
 
-def test_composite_transports_only_and_uses_the_restore_key_for_save(tmp_path):
+def test_composite_transports_only_and_uses_the_restore_key_for_save(tmp_path, real_bash):
     from ruamel.yaml import YAML
 
     action = ROOT / ".github/actions/desktop-build-cache/action.yml"
@@ -162,7 +163,7 @@ def test_composite_transports_only_and_uses_the_restore_key_for_save(tmp_path):
         env = {name: values[value] for name, value in describe_step["env"].items()}
         output.unlink(missing_ok=True)
         result = subprocess.run(
-            ["bash", "-e", "-c", describe_step["run"]], cwd=tmp_path,
+            [real_bash, "-e", "-c", describe_step["run"]], cwd=tmp_path,
             env={**os.environ, **env, "GITHUB_OUTPUT": str(output), "RUNNER_OS": "Linux"},
             capture_output=True, text=True, encoding="utf-8", timeout=30,
         )
@@ -236,6 +237,7 @@ def test_private_home_and_source_cannot_be_children_of_cached_roots(tmp_path, mo
         describe_cache(nested, cache, "test")
 
 
+@pytest.mark.platforms("posix")
 def test_direct_snapshot_preserves_node_receipt_and_excludes_job_secrets(tmp_path):
     import shutil
     from scripts.ci.desktop_build_cache import describe_cache

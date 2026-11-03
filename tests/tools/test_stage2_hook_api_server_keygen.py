@@ -16,6 +16,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from tools.environments.local import _find_bash
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 STAGE2_HOOK = REPO_ROOT / "docker" / "stage2-hook.sh"
@@ -60,14 +61,16 @@ def _run_keygen(
         # unguarded-command defects that would abort a real container boot.
         "set -eu\n"
         f"{env_setup}"
-        f'HERMES_HOME="{home}"\n'
+        f'HERMES_HOME="{home.as_posix()}"\n'
         # In tests we run unprivileged; as_hermes is a passthrough then.
         'as_hermes() { "$@"; }\n'
         f"{_path_guard_functions(stage2_text)}\n"
         f"{_keygen_block(stage2_text)}\n"
     )
+    script_path = home.parent / "keygen.sh"
+    script_path.write_text(script, encoding="utf-8", newline="\n")
     return subprocess.run(
-        ["sh", "-c", script],
+        [_find_bash(), script_path.as_posix()],
         capture_output=True,
         text=True,
         timeout=30,

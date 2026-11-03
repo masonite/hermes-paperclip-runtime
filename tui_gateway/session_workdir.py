@@ -249,7 +249,7 @@ def _resolve_create_cwd(params: dict, source: str, profile_home) -> tuple[bool, 
         if params.get("cwd_explicit"):
             explicit_cwd = True
             session_cwd = raw_cwd
-        elif session_cwd and session_cwd == os.path.abspath(os.path.expanduser(raw_cwd)):
+        elif session_cwd and session_cwd in (raw_cwd, os.path.abspath(os.path.expanduser(raw_cwd))):
             explicit_cwd = True
     return explicit_cwd, session_cwd, remote_cwd
 

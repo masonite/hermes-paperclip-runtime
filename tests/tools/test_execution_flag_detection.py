@@ -7,6 +7,7 @@ import time
 import pytest
 
 from tools.approval import detect_dangerous_command, detect_hardline_command
+from tools.environments.local import _find_bash
 
 
 @pytest.mark.parametrize(
@@ -24,6 +25,8 @@ def test_real_read_tool_binaries_confirm_option_ownership(
     if shutil.which(argv[0]) is None:
         pytest.skip(f"{argv[0]} is not installed")
 
+    if argv[0] == "sort":
+        argv = [_find_bash(), "-c", 'sort "$@"', "sort", *argv[1:]]
     completed = subprocess.run(argv, input=stdin, text=True, capture_output=True)
 
     assert completed.returncode == expected_returncode

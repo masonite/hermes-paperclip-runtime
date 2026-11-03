@@ -7,6 +7,7 @@ from agent.turn_context import _bind_turn_identity
 from run_agent import AIAgent
 from tools.process_registry import ProcessRegistry
 from tools.terminal_tool import terminal_tool
+from tools.environments.local import _bash_safe_path
 
 
 def _agent():
@@ -17,7 +18,7 @@ def _agent():
 
 def _spawn(agent, task_id, tmp_path):
     _bind_turn_identity(agent, task_id, None, None, None, None)
-    command = shlex.quote(sys.executable) + " -c " + shlex.quote("import time; time.sleep(60)")
+    command = shlex.quote(_bash_safe_path(sys._base_executable)) + " -c " + shlex.quote("import time; time.sleep(600)")
     result = json.loads(terminal_tool(command, background=True, task_id=task_id,
                                      workdir=str(tmp_path), notify_on_complete=True))
     return result["session_id"]

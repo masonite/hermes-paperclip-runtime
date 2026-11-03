@@ -254,18 +254,18 @@ def test_runtime_exec_tracks_scope_and_clears_missing_value(monkeypatch):
     assert "unset SERVICE_TOKEN" in second_cmd[-1]
 
 
-def test_wrapped_exec_scopes_explicit_forward_env_across_profiles(monkeypatch, tmp_path):
+def test_wrapped_exec_scopes_explicit_forward_env_across_profiles(monkeypatch, tmp_path, real_bash):
     """The shared snapshot must not resurrect an explicit forward-only value."""
     from agent import secret_scope as ss
 
     env = _make_execute_only_env(forward_env=["EXPLICIT_TOKEN"])
-    env.cwd = str(tmp_path)
-    env._snapshot_path = str(tmp_path / "snapshot.sh")
-    env._cwd_file = str(tmp_path / "cwd.txt")
+    env.cwd = tmp_path.as_posix()
+    env._snapshot_path = (tmp_path / "snapshot.sh").as_posix()
+    env._cwd_file = (tmp_path / "cwd.txt").as_posix()
     env._snapshot_passthrough_names = set()
     (tmp_path / "snapshot.sh").write_text(
         "export EXPLICIT_TOKEN=stale-from-previous-profile\n",
-        encoding="utf-8",
+        encoding="utf-8", newline="\n",
     )
     monkeypatch.setenv("EXPLICIT_TOKEN", "token-for-default")
     monkeypatch.setattr(docker_env, "_load_hermes_env_vars", dict)
@@ -286,7 +286,7 @@ def test_wrapped_exec_scopes_explicit_forward_env_across_profiles(monkeypatch, t
             index += 2
         assert cmd[container_index + 1 : container_index + 3] == ["bash", "-c"]
         return subprocess.Popen(
-            ["bash", "-c", cmd[container_index + 3]],
+            [real_bash, "-c", cmd[container_index + 3]],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             stdin=subprocess.PIPE if stdin_data is not None else subprocess.DEVNULL,

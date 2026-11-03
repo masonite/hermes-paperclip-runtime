@@ -11,6 +11,7 @@ import subprocess
 
 from hermes_state import SessionDB
 from tui_gateway import server
+from tests.tui_gateway.thread_fixtures import set_thread_class
 
 
 class _ImmediateThread:
@@ -36,7 +37,7 @@ def _desktop_session(monkeypatch, tmp_path, cwd):
     })
     sid = resp["result"]["session_id"]
     # Patched only after create: session.create starts real Timers (Thread subclasses).
-    monkeypatch.setattr(server.threading, "Thread", _ImmediateThread)
+    set_thread_class(monkeypatch, server, _ImmediateThread)
     return db, sid, server._sessions[sid], resp["result"]["stored_session_id"]
 
 

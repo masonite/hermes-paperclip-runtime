@@ -107,7 +107,7 @@ def test_sandbox_status_offers_the_image_switch_instead_of_a_config_hint(monkeyp
     assert "Xvnc" in st.blocker and "placement: gateway" in st.blocker
 
 
-def test_remote_command_survives_the_ssh_remote_shell_reparse():
+def test_remote_command_survives_the_ssh_remote_shell_reparse(real_bash):
     """OpenSSH joins the words after the host with spaces and the remote login shell splits them again, so
     the ``bash -c <script>`` must travel as ONE quoted word there; docker/apptainer pass argv through and
     must not get that extra quoting. Both shapes are executed through a real bash the way each client's
@@ -127,16 +127,16 @@ def test_remote_command_survives_the_ssh_remote_shell_reparse():
     over_ssh = streams.remote_command(_FakeSSH(), argv, child_env=child_env)
     assert over_ssh[:2] == ["ssh", "pn@sandbox.example"] and len(over_ssh) == 3
     remote_word = " ".join(over_ssh[2:])  # what sshd hands the login shell
-    out = subprocess.run(["bash", "-c", remote_word], capture_output=True, text=True, check=True).stdout
+    out = subprocess.run([real_bash, "-c", remote_word], capture_output=True, text=True, check=True).stdout
     assert out == "hello world|it's $HOME"
-    env_out = subprocess.run(["bash", "-c", " ".join(streams.remote_command(
+    env_out = subprocess.run([real_bash, "-c", " ".join(streams.remote_command(
         _FakeSSH(), ["sh", "-c", 'printf "%s" "$AGENT_BROWSER_ARGS"'], child_env=child_env)[2:])],
         capture_output=True, text=True, check=True).stdout
     assert env_out == "--a=1,--b='x y'"
 
     docker_shape = streams.remote_argv(["docker", "exec", "-i", "c0ffee"], argv, env=child_env)
     assert docker_shape[:6] == ["docker", "exec", "-i", "c0ffee", "bash", "-c"] and len(docker_shape) == 7
-    out = subprocess.run(["bash", "-c", docker_shape[6]], capture_output=True, text=True, check=True).stdout
+    out = subprocess.run([real_bash, "-c", docker_shape[6]], capture_output=True, text=True, check=True).stdout
     assert out == "hello world|it's $HOME"
 
 
@@ -285,6 +285,7 @@ def test_stop_and_status_follow_the_recorded_owner_not_the_current_setting(monke
     assert runtime.stop() is True and len(stopped) == 1
 
 
+@pytest.mark.platforms("posix")
 def test_forward_port_carries_bytes_both_ways_through_the_exec_stream(monkeypatch):
     """The sandbox's loopback (Chromium's CDP port) is reached from the host through a local listener whose
     connections ride an exec stream running the in-sandbox relay. An empty exec prefix runs that relay

@@ -31,7 +31,7 @@ def _pinned_namespace(monkeypatch):
 
 
 def _dead_pid() -> int:
-    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc = subprocess.Popen([sys._base_executable, "-c", "pass"])
     proc.wait(timeout=30)
     assert not psutil.pid_exists(proc.pid), "reaped pid unexpectedly reused"
     return proc.pid

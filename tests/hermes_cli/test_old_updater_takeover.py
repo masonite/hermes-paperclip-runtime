@@ -59,7 +59,7 @@ def test_historical_payload_maps_to_takeover_request_schema(tmp_path, desktop, r
     (root / "hermes_constants.py").write_text(
         "import os\nfrom pathlib import Path\n"
         "def get_hermes_home():\n    return Path(os.environ['HERMES_HOME'])\n"
-        "get_default_hermes_root = get_hermes_home\n", encoding="utf-8",
+        "get_default_hermes_root = get_hermes_home\ndef project_venv_dir(root):\n    return None\n", encoding="utf-8",
     )
     program = root / "historical.py"
     program.write_text(
@@ -71,7 +71,7 @@ def test_historical_payload_maps_to_takeover_request_schema(tmp_path, desktop, r
     )
     env = {key: value for key, value in os.environ.items()
            if not key.startswith(('HERMES_', 'PYTHON', 'UV_'))}
-    env.update(HOME=str(home), HERMES_HOME=str(home))
+    env.update(HOME=str(home), USERPROFILE=str(home), HERMES_HOME=str(home), PYTHONUTF8="1")
     result = subprocess.run([sys.executable, "-B", str(program)], env=env,
                             capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -604,6 +604,7 @@ def test_the_takeover_breadcrumb_is_written_temp_fsync_rename(tmp_path, monkeypa
 
 
 @pytest.mark.skipif(getattr(os, "geteuid", lambda: 1)() == 0, reason="root ignores directory permissions")
+@pytest.mark.platforms("posix")
 def test_a_takeover_debt_another_profile_cannot_see_is_never_silent(tmp_path, monkeypatch, capsys):
     """The takeover arms after the historical updater already moved the tree, through the same
     fallback as the commit point: with the host record unwritable on a two-profile install, the

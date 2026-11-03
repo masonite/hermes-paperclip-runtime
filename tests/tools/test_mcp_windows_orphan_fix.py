@@ -114,10 +114,10 @@ class TestWindowsTreeKillHelpers:
             def kill(self):
                 killed.append(self.pid)
 
-        fake_psutil = MagicMock()
-        fake_psutil.Process = FakeProc
-        fake_psutil.wait_procs = lambda procs, timeout: ([], [])  # all exited gracefully
-        monkeypatch.setitem(__import__("sys").modules, "psutil", fake_psutil)
+        import psutil as fake_psutil
+        import signal
+        monkeypatch.setattr(fake_psutil, "Process", FakeProc)
+        monkeypatch.setattr(fake_psutil, "wait_procs", lambda procs, timeout: ([], []))
 
         lifecycle._kill_windows_process_tree(1, 15)
         # SIGTERM pass: descendants only — the direct child was already signalled by the caller.
@@ -126,7 +126,7 @@ class TestWindowsTreeKillHelpers:
 
         # Force pass: survivors of the wait are killed. wait_procs reports everyone alive.
         fake_psutil.wait_procs = lambda procs, timeout: ([], list(procs))
-        lifecycle._kill_windows_process_tree(1, 9)
+        lifecycle._kill_windows_process_tree(1, getattr(signal, "SIGKILL", signal.SIGTERM))
         assert sorted(killed) == [2, 3]
 
     def test_ledger_tree_kill_helper_swallows_errors(self):

@@ -76,6 +76,7 @@ def _restart_outcome() -> fleet._GatewayRestartOutcome:
     )
 
 
+@pytest.mark.require_symlinks
 def test_symlinked_external_profile_gateway_does_not_fail_update(external_profile_host, capsys):
     plan = UpdatePlan(runtimes=[_gateway("default", 1111), _gateway("work", 4242)])
     update_receipt.begin_update_receipt()
@@ -94,6 +95,7 @@ def test_symlinked_external_profile_gateway_does_not_fail_update(external_profil
     assert "gateway [work] pid 4242" in out  # still surfaced, informationally
 
 
+@pytest.mark.require_symlinks
 def test_external_profile_does_not_mask_a_missed_own_gateway(external_profile_host):
     """The root's own gateway missed by the restart phase is still an owed restart."""
     plan = UpdatePlan(runtimes=[_gateway("default", 1111), _gateway("work", 4242)])

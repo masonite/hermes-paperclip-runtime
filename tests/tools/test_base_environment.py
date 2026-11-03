@@ -175,6 +175,7 @@ class TestAtomicSnapshotWrite:
 class TestSnapshotFileModes:
     """Snapshot metadata files are private without changing user command umask."""
 
+    @pytest.mark.platforms("posix")
     def test_snapshot_and_cwd_files_are_0600(self, tmp_path):
         import os
         from pathlib import Path

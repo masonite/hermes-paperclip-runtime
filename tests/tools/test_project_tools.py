@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -41,7 +42,7 @@ def test_agent_session_project_create_keeps_profile_active_pointer_and_moves_ses
     assert result["success"] is True
     assert created is not None
     assert created.name == "Background"
-    assert workspace_moves == [("session-background", "/work/background", "Background")]
+    assert workspace_moves == [("session-background", str(Path("/work/background").resolve()), "Background")]
 
 
 def test_legacy_project_create_sets_profile_active_pointer(monkeypatch, tmp_path):
@@ -97,7 +98,7 @@ def test_agent_session_project_switch_keeps_profile_active_pointer(monkeypatch, 
 
     assert result["success"] is True
     assert result["id"] == background_id
-    assert workspace_moves == [("session-background", "/work/background", "Background")]
+    assert workspace_moves == [("session-background", str(Path("/work/background").resolve()), "Background")]
 
 
 def test_session_without_workspace_callback_switch_sets_profile_active_pointer(monkeypatch, tmp_path):

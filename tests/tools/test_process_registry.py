@@ -622,6 +622,7 @@ class TestStdinHelpers:
         proc.stdin.close.assert_called_once()
         assert result["status"] == "ok"
 
+    @pytest.mark.platforms("posix")
     def test_close_stdin_allows_eof_driven_process_to_finish(self, registry, tmp_path):
         """PTY mode: writing data + sending EOF lets an EOF-driven child finish.
 
@@ -888,6 +889,7 @@ class TestSpawnEnvSanitization:
         with patch.dict(os.environ, {
             "PATH": "/usr/bin:/bin",
             "HOME": "/home/user",
+            "USERPROFILE": "/home/user",
             "USER": "tester",
             "TELEGRAM_BOT_TOKEN": "bot-secret",
             "FIRECRAWL_API_KEY": "fc-secret",
@@ -1189,6 +1191,7 @@ class TestSpawnRewriteCompoundBackground:
         assert "&& { node server.js &>/tmp/srv.log & }" in shell_cmd[2]
 
 
+    @pytest.mark.platforms("posix")
     def test_pty_path_uses_rewritten_command(self, registry):
         """PTY spawn path must also use the rewritten command (issue #68915)."""
         mock_pty_proc = MagicMock()
@@ -1335,6 +1338,7 @@ class TestKillProcess:
         assert result["status"] == "already_exited"
 
 
+    @pytest.mark.platforms("posix")
     def test_kill_detached_session_uses_host_pid(self, registry):
         s = _make_session(sid="proc_detached", command="sleep 999")
         s.pid = 424242
@@ -1617,41 +1621,6 @@ class TestTerminateHostPidWindows:
 class TestTerminateHostPidPosix:
     """POSIX branch gives a managed parent its shutdown window first."""
 
-    def test_posix_terminates_parent_before_snapshot_descendants(self, monkeypatch):
-        from tools import process_registry as pr
-        import psutil
-
-        terminate_order = []
-
-        class _FakeChild:
-            def __init__(self, pid):
-                self.pid = pid
-
-            def terminate(self):
-                terminate_order.append(self.pid)
-
-        class _FakeParent:
-            def __init__(self, pid):
-                self.pid = pid
-
-            def children(self, recursive=False):
-                assert recursive is True
-                return [_FakeChild(101), _FakeChild(102), _FakeChild(103)]
-
-            def terminate(self):
-                terminate_order.append(self.pid)
-
-        monkeypatch.setattr(psutil, "Process", _FakeParent)
-        # A zero grace keeps this ordering probe deterministic while retaining
-        # the configured no-SIGKILL behavior.
-        monkeypatch.setattr(pr.ProcessRegistry, "_daemon_term_grace_seconds",
-                            staticmethod(lambda: 0.0))
-
-        pr.ProcessRegistry._terminate_host_pid(12345)
-
-        assert terminate_order == [12345, 101, 102, 103], (
-            "Parent must receive SIGTERM before any snapshot descendant"
-        )
 
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX signal ordering; Windows uses taskkill")
     @pytest.mark.live_system_guard_bypass
