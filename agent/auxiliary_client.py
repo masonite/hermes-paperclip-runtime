@@ -1130,7 +1130,7 @@ def _scoped_key_env(name: str) -> str:
 def _attempt_stream_socket(stream: Any) -> Any:
     """The raw socket under an SDK event stream (``stream.response`` is the ``httpx.Response``;
     httpcore publishes its connection as the ``network_stream`` extension), or None."""
-    from agent.agent_runtime_helpers import _socket_from_stream
+    from agent.agent_runtime_helpers_dead_connections import _socket_from_stream
     extensions = getattr(getattr(stream, "response", None), "extensions", None)
     network_stream = extensions.get("network_stream") if isinstance(extensions, dict) else None
     return _socket_from_stream(network_stream) if network_stream is not None else None

@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from ipaddress import ip_address
 import ssl
 from threading import Thread
+import time
 
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
@@ -44,6 +45,8 @@ def local_tls(tmp_path, monkeypatch):
             self.send_response(200)
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
+            if self.path == "/delayed":
+                time.sleep(0.75)
             self.wfile.write(body)
 
         def log_message(self, *args):
@@ -65,6 +68,17 @@ def local_tls(tmp_path, monkeypatch):
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+@pytest.mark.platforms("windows")
+def test_interruptible_tls_read_waits_for_delayed_body(local_tls):
+    from agent.agent_runtime_helpers import _socket_from_response
+
+    url, bundle = local_tls
+    with httpx.Client(verify=ssl.create_default_context(cafile=str(bundle))) as client:
+        with client.stream("GET", url + "/delayed", timeout=3) as response:
+            assert _socket_from_response(response) is not None
+            assert b"test-model" in response.read()
 
 
 @pytest.mark.parametrize("probe", ["metadata", "catalog"])

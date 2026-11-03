@@ -194,7 +194,7 @@ def test_inline_stream_stale_detector_still_fires_from_monitor_thread(
     # stream is undelivered: with the retry budget spent the error surfaces to the
     # conversation loop instead of an empty partial-stream stub (same contract as the
     # worker path, #112419).
-    with pytest.raises(httpx.RemoteProtocolError):
+    with pytest.raises((httpx.RemoteProtocolError, httpx.ReadError)):
         interruptible_streaming_api_call(agent, dict(_KW))
     elapsed = time.time() - started
 

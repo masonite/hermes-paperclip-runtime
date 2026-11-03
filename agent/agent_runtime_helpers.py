@@ -3575,6 +3575,7 @@ def _connection_candidates(conn: Any):
 
 def _socket_from_candidate(candidate: Any):
     """Raw socket behind a connection/stream wrapper yielded by ``_connection_candidates``."""
+    from agent.agent_runtime_helpers_dead_connections import _socket_from_stream
     stream = getattr(candidate, "_network_stream", None) or getattr(candidate, "_stream", None)
     sock = _socket_from_stream(stream) if stream is not None else None
     return sock if sock is not None else _socket_from_stream(candidate)
@@ -3593,22 +3594,6 @@ def _socket_from_response(response: Any):
             if sock is not None:
                 return sock
     return None
-
-
-def _socket_from_stream(stream: Any):
-    """Raw socket behind an httpcore network stream (several backends), or None."""
-    sock = getattr(stream, "_sock", None)
-    if sock is None and callable(getattr(stream, "get_extra_info", None)):
-        with contextlib.suppress(Exception):
-            sock = stream.get_extra_info("socket")
-    if sock is None:
-        sock = getattr(getattr(stream, "stream", None), "_sock", None)
-    if sock is None and callable(getattr(getattr(stream, "_stream", None), "extra", None)):
-        # anyio-backed streams expose the raw socket through SocketAttribute.raw_socket.
-        with contextlib.suppress(Exception):
-            from anyio.abc import SocketAttribute
-            sock = stream._stream.extra(SocketAttribute.raw_socket)
-    return sock
 
 
 def _iter_pool_sockets(client: Any):

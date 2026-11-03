@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import sys
+import time
 from typing import Any
 
 logger = logging.getLogger("run_agent")  # origin module's logger name: log records / caplog filters unchanged
@@ -13,16 +15,63 @@ logger = logging.getLogger("run_agent")  # origin module's logger name: log reco
 def _socket_is_dead(sock) -> bool:
     """Probe socket health with a non-blocking recv peek."""
     import socket as _socket
+    timeout = sock.gettimeout()
     try:
         sock.setblocking(False)
-        return sock.recv(1, _socket.MSG_PEEK | _socket.MSG_DONTWAIT) == b""
+        return _socket.socket.recv(sock, 1, _socket.MSG_PEEK) == b""
     except BlockingIOError:
         return False  # no data available: socket is healthy
     except OSError:
         return True
     finally:
         with contextlib.suppress(OSError):
-            sock.setblocking(True)
+            sock.settimeout(timeout)
+
+
+def _prepare_interruptible_read(stream: Any) -> None:
+    """Windows shutdown does not wake select; poll reads without changing the request budget."""
+    if sys.platform != "win32":
+        return
+    from httpcore import ReadError, ReadTimeout
+    from httpcore._backends.sync import SyncStream
+
+    if not isinstance(stream, SyncStream) or getattr(stream, "_hermes_interruptible_read", False):
+        return
+    original = stream.read
+
+    def read(max_bytes: int, timeout: float | None = None) -> bytes:
+        if timeout is not None and timeout <= 0.25:
+            return original(max_bytes, timeout=timeout)
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            remaining = 0.25 if deadline is None else max(0.0, min(0.25, deadline - time.monotonic()))
+            try:
+                return original(max_bytes, timeout=remaining)
+            except ReadTimeout as exc:
+                if _socket_is_dead(stream._sock):
+                    raise ReadError("Stream socket was shut down") from exc
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise
+
+    stream.read = read
+    stream._hermes_interruptible_read = True
+
+
+def _socket_from_stream(stream: Any):
+    """Raw socket behind an httpcore network stream (several backends), or None."""
+    _prepare_interruptible_read(stream)
+    sock = getattr(stream, "_sock", None)
+    if sock is None and callable(getattr(stream, "get_extra_info", None)):
+        with contextlib.suppress(Exception):
+            sock = stream.get_extra_info("socket")
+    if sock is None:
+        sock = getattr(getattr(stream, "stream", None), "_sock", None)
+    if sock is None and callable(getattr(getattr(stream, "_stream", None), "extra", None)):
+        # anyio-backed streams expose the raw socket through SocketAttribute.raw_socket.
+        with contextlib.suppress(Exception):
+            from anyio.abc import SocketAttribute
+            sock = stream._stream.extra(SocketAttribute.raw_socket)
+    return sock
 
 
 def _count_dead_pool_sockets(client: Any) -> int:

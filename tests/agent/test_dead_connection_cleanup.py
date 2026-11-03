@@ -1,22 +1,27 @@
 """Regression tests for stale provider sockets in agent-owned client pools."""
 
+import socket
+import threading
+import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from agent.agent_runtime_helpers_dead_connections import cleanup_dead_connections
+import pytest
+
+from agent.agent_runtime_helpers_dead_connections import _socket_from_stream, cleanup_dead_connections
 
 
-class _ProbeSocket:
-    def __init__(self, *, dead):
-        self.dead = dead
-
-    def setblocking(self, _enabled):
-        pass
-
-    def recv(self, _size, _flags):
-        if self.dead:
-            return b""
-        raise BlockingIOError
+@pytest.fixture
+def clients():
+    healthy, healthy_peer = socket.socketpair()
+    dead, dead_peer = socket.socketpair()
+    with healthy, healthy_peer, dead, dead_peer:
+        healthy.settimeout(2)
+        dead.settimeout(3)
+        dead_peer.shutdown(socket.SHUT_WR)
+        yield _client_with_socket(healthy), _client_with_socket(dead)
+        assert healthy.gettimeout() == 2
+        assert dead.gettimeout() == 3
 
 
 def _client_with_socket(sock):
@@ -29,10 +34,9 @@ def _client_with_socket(sock):
     return SimpleNamespace(_client=http_client)
 
 
-def test_cleanup_retires_dead_cached_request_client():
+def test_cleanup_retires_dead_cached_request_client(clients):
     """A half-closed request pool must not be hidden by a healthy primary."""
-    primary = _client_with_socket(_ProbeSocket(dead=False))
-    request = _client_with_socket(_ProbeSocket(dead=True))
+    primary, request = clients
     agent = SimpleNamespace(
         client=primary,
         _request_client_cache={"client": request},
@@ -47,10 +51,9 @@ def test_cleanup_retires_dead_cached_request_client():
     )
 
 
-def test_cleanup_rebuilds_dead_primary_client():
+def test_cleanup_rebuilds_dead_primary_client(clients):
     """The existing primary-client recovery remains the cleanup path."""
-    primary = _client_with_socket(_ProbeSocket(dead=True))
-    request = _client_with_socket(_ProbeSocket(dead=False))
+    request, primary = clients
     agent = SimpleNamespace(
         client=primary,
         _request_client_cache={"client": request},
@@ -63,3 +66,30 @@ def test_cleanup_rebuilds_dead_primary_client():
         reason="dead_connection_cleanup"
     )
     agent._close_cached_request_openai_client.assert_not_called()
+
+
+@pytest.mark.platforms("windows")
+@pytest.mark.parametrize("deliver", [False, True], ids=["request-timeout", "delayed-data"])
+def test_stream_read_preserves_request_budget(deliver):
+    from httpcore import ReadTimeout
+    from httpcore._backends.sync import SyncStream
+
+    reader, writer = socket.socketpair()
+    with reader, writer:
+        stream = SyncStream(reader)
+        assert _socket_from_stream(stream) is reader
+        timer = threading.Timer(0.75, writer.sendall, args=(b"ready",)) if deliver else None
+        if timer is not None:
+            timer.start()
+        try:
+            started = time.monotonic()
+            if deliver:
+                assert stream.read(5, timeout=3) == b"ready"
+            else:
+                with pytest.raises(ReadTimeout):
+                    stream.read(5, timeout=2)
+                assert 1.8 <= time.monotonic() - started < 5
+        finally:
+            if timer is not None:
+                timer.cancel()
+                timer.join()

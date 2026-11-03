@@ -3025,25 +3025,6 @@ class _StreamingCall(StreamingWaitMonitor):
         self._writer_token = claim_stream_writer(self.agent)
         self._reabort_if_cancelled(response)
 
-    def _reabort_if_cancelled(self, response: Any) -> None:
-        """Interrupt/stale abort that raced ``create()``: the one-shot pool sweep ran while
-        the connect/TLS window held no socket yet (``tcp_force_closed=0``), so nothing stopped
-        the request once it came up and the serve kept generating into a dropped consumer
-        (#98974). Response headers prove the socket exists now — shut it down (shutdown-only,
-        never a cross-thread close) so the worker unwinds as after a stale kill."""
-        with self.stream_attempt_lock:
-            current = int(self.stream_attempt_state["current"])
-            cancelled = self._request_cancelled["value"] or current in self.stream_attempt_state["cancelled"]
-        if not cancelled:
-            return
-        self._shutdown_stale_attempt_socket(response)
-        if self._attempt_request_client is not None:
-            # Kind-aware: the anthropic_messages wire (incl. anthropic-compatible custom endpoints)
-            # runs on a request-local Anthropic client with its own slot sweep.
-            abort = (self.agent._abort_request_anthropic_client if self.agent.api_mode == "anthropic_messages"
-                     else self.agent._abort_request_openai_client)
-            abort(self._attempt_request_client, reason="cancelled_attempt_late_connect")
-
     def _accept_chat_chunk(self, stream_attempt_id: int, chunk: Any) -> bool:
         with contextlib.suppress(Exception):
             choices = getattr(chunk, "choices", None)
