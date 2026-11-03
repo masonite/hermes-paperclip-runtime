@@ -19,6 +19,31 @@ import time
 _LOCK_POLL_SECONDS = 0.05
 
 
+def open_lease_fd(path: Path, *, create: bool = False) -> int:
+    """Open a lease that a pruner can unlink while holding its byte lock."""
+    if os.name != "nt":
+        return os.open(path, os.O_RDWR | (os.O_CREAT | os.O_EXCL if create else 0), 0o600)
+    import ctypes
+    from ctypes import wintypes
+    import msvcrt
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                                  ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel.CloseHandle.restype = wintypes.BOOL
+    # Every lease opener must share DELETE; closing before unlink would reopen the create/lock race.
+    handle = kernel.CreateFileW(str(path), 0xC0000000, 0x7, None, 1 if create else 3, 0x80, None)
+    if handle == wintypes.HANDLE(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        return msvcrt.open_osfhandle(handle, os.O_RDWR | os.O_BINARY | os.O_NOINHERIT)
+    except BaseException:
+        kernel.CloseHandle(handle)
+        raise
+
+
 def is_junction(path: Path) -> bool:
     """Keep junctions opaque even before Python 3.12's Path.is_junction exists."""
     try:

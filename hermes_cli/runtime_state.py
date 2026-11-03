@@ -22,6 +22,7 @@ from pm.filesystem import (
     durable_write_bytes as _atomic_bytes,
     file_digest as _digest,
     lock_fd as _lock,
+    open_lease_fd,
     read_bytes_or_none as _bytes,
 )
 
@@ -155,7 +156,7 @@ def lease_directory(generation: Path) -> Callable[[], None]:
     _prune_unlocked_leases(leases)
     while True:
         lease = leases / uuid.uuid4().hex
-        fd = os.open(lease, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600)
+        fd = open_lease_fd(lease, create=True)
         try:
             _lock(fd, wait=True)
         except BaseException:
@@ -226,7 +227,7 @@ def _prune_unlocked_leases(leases: Path) -> bool:
     held = False
     for lease in leases.glob("*"):
         try:
-            fd = os.open(lease, os.O_RDWR)
+            fd = open_lease_fd(lease)
         except FileNotFoundError:
             continue
         except OSError:
