@@ -34,7 +34,8 @@ def _gateway_argv(tmp_path: Path) -> list[str]:
     bin_dir.mkdir(exist_ok=True)
     script = bin_dir / "hermes"
     script.write_text(_GATEWAY_STUB, encoding="utf-8")
-    return [sys.executable, str(script), "gateway", "run"]
+    # A Windows venv launcher has a different PID from the interpreter being scanned.
+    return [sys._base_executable, str(script), "gateway", "run"]
 
 
 def _wait_for(path: Path, proc: subprocess.Popen) -> None:
@@ -66,6 +67,11 @@ def test_scan_claims_a_bare_gateway_only_for_the_home_its_environment_names(tmp_
     )
     try:
         _wait_for(ready, proc)
+        assert Path(real_home_for_pid(proc.pid)).resolve() == home_a.resolve()
+        if os.name == "nt":
+            listing = gateway._windows_process_listing()
+            assert listing is not None, "Windows process listing unavailable"
+            assert proc.pid in dict(gateway._iter_windows_list_processes(listing))
         monkeypatch.setenv("HERMES_HOME", str(home_b))
         assert proc.pid not in gateway.find_gateway_pids()
         monkeypatch.setenv("HERMES_HOME", str(home_a))

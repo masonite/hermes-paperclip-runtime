@@ -16,6 +16,7 @@ import pytest
 from hermes_cli import main as cli_main, update_cmd, update_receipt
 from hermes_cli.update_inventory import UpdatePlan
 from hermes_cli.update_cmd import _sync_with_upstream_if_needed
+from tests.hermes_cli.update_fault_fixtures import patch_update_run
 
 
 def git(root, *args):
@@ -36,7 +37,7 @@ def update_tree(tmp_path, monkeypatch):
     git(origin, 'config', 'user.name', 'Fixture')
     git(origin, 'config', 'user.email', 'fixture@example.invalid')
     (origin / 'content.txt').write_text('base\n', encoding='utf-8')
-    (origin / '.gitignore').write_text('.bytecode-fingerprint\n', encoding='utf-8')
+    (origin / '.gitignore').write_text('.bytecode-fingerprint\n', encoding='utf-8', newline='\n')
     git(origin, 'add', 'content.txt', '.gitignore')
     git(origin, '-c', 'commit.gpgsign=false', 'commit', '-qm', 'base')
     git(origin, 'tag', 'v1.0.0')
@@ -129,7 +130,7 @@ def test_branch_update_uses_real_refs_and_completion_request(update_tree, monkey
                     capture_output=True, text=True, encoding='utf-8')
         return found.stdout.strip() or '<no upstream>'
 
-    def fault(command, *args, **kwargs):
+    def fault(real_run, command, *args, **kwargs):
         assert Path(command[0]).name.lower() in {'git', 'git.exe'} or command[0] == sys.executable, command
         assert Path(kwargs['cwd']).resolve() in {t.clone, t.origin}, command
         # The upstream sync's tree move (`pull upstream main` on older updaters, a local merge of
@@ -140,13 +141,13 @@ def test_branch_update_uses_real_refs_and_completion_request(update_tree, monkey
         if 'merge' in command and '--ff-only' in command and not upstream_move:
             if case == 'no-move':
                 return subprocess.CompletedProcess(command, 0, stdout='', stderr='')
-            result = run(command, *args, **kwargs)
+            result = real_run(command, *args, **kwargs)
             if case in {'wrong-branch', 'fork-upstream-wrong-branch'}:
                 run(['git', 'checkout', '-qb', 'wrong'], cwd=t.clone, check=True, capture_output=True)
             if case == 'fork-upstream-reverted':
                 run(['git', 'reset', '--hard', t.base], cwd=t.clone, check=True, capture_output=True)
             return result
-        result = run(command, *args, **kwargs)
+        result = real_run(command, *args, **kwargs)
         if upstream_move and case.startswith('fork-late'):
             if case.endswith('wrong-branch'):
                 run(['git', 'checkout', '-qb', 'wrong'], cwd=t.clone, check=True, capture_output=True)
@@ -156,7 +157,7 @@ def test_branch_update_uses_real_refs_and_completion_request(update_tree, monkey
             pushes.append(result.returncode)
         return result
 
-    monkeypatch.setattr(subprocess, 'run', fault)
+    patch_update_run(monkeypatch, fault)
     fails = case in {'missing', 'check-missing', 'no-move', 'wrong-branch',
                      'fork-upstream-wrong-branch', 'fork-upstream-reverted',
                      'fork-late-wrong-branch', 'fork-late-reverted'}
@@ -231,10 +232,9 @@ def test_stable_git_uses_remote_identity_without_moving_local_tags(update_tree, 
         git(t.origin, 'branch', 'retained-branch', t.newer)
         t.args.branch = 'retained-branch'
         expected = t.newer
-    run = subprocess.run
     calls = []
 
-    def guarded_run(command, *args, **kwargs):
+    def guarded_run(real_run, command, *args, **kwargs):
         command = list(map(str, command))
         assert Path(command[0]).name.lower() in {'git', 'git.exe'}, command
         cwd = Path(kwargs.get('cwd', os.getcwd())).resolve()
@@ -243,9 +243,9 @@ def test_stable_git_uses_remote_identity_without_moving_local_tags(update_tree, 
         calls.append(command)
         if 'fetch' in command and t.wanted in command and server == 'fetch-refused':
             return subprocess.CompletedProcess(command, 128, stdout='', stderr='fixture: raw SHA wants disabled')
-        return run(command, *args, **kwargs)
+        return real_run(command, *args, **kwargs)
 
-    monkeypatch.setattr(subprocess, 'run', guarded_run)
+    patch_update_run(monkeypatch, guarded_run)
     if server == 'fetch-refused':
         with pytest.raises(SystemExit) as error:
             cli_main.cmd_update(t.args)

@@ -26,6 +26,7 @@ def _tar(tmp_path, members):
     return archive
 
 
+@pytest.mark.require_symlinks
 def test_relative_symlinks_resolve_from_their_own_directory(tmp_path):
     archive = _tar(tmp_path, [("python/share/terminfo/a/adm1178", None), ("python/share/terminfo/1/1178", "../a/adm1178")])
     dest = tmp_path / "out"

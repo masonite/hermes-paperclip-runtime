@@ -585,4 +585,4 @@ class TestDirectoryPluginKeepsIdentityOverEntryPoint:
         from hermes_cli.plugins_cmd import _discover_all_plugins
         rows = [r for r in _discover_all_plugins() if r[0] == "twin"]
         assert [r[3] for r in rows] == ["user"]
-        assert str(rows[0][4]).endswith("plugins/twin")
+        assert rows[0][4].as_posix().endswith("plugins/twin")

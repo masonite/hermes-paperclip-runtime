@@ -164,8 +164,8 @@ function Get-LongProfileRoot {
     $candidates = @($envProfile, $shellProfile, "$env:HOMEDRIVE$env:HOMEPATH")
     foreach ($anchor in @($envProfile, $shellProfile)) {
         if ($anchor -and $env:USERNAME) {
-            $parent = Split-Path -Parent $anchor.TrimEnd('\', '/')
-            if ($parent) { $candidates += (Join-Path $parent $env:USERNAME) }
+            $parent = [System.IO.Path]::GetDirectoryName($anchor.TrimEnd('\', '/'))
+            if ($parent) { $candidates += [System.IO.Path]::Combine($parent, $env:USERNAME) }
         }
     }
 
@@ -177,7 +177,7 @@ function Get-LongProfileRoot {
         if (-not $candidate) { continue }
         if ($candidate -match '~\d') { continue }
         try {
-            if (Test-Path -LiteralPath $candidate -PathType Container) {
+            if ([System.IO.Directory]::Exists($candidate)) {
                 $script:LongProfileRoot = $candidate
                 break
             }
@@ -197,23 +197,23 @@ function Expand-ShortProfileRoot {
 
     $longRoot = Get-LongProfileRoot
     if (-not $longRoot) { return $Path }
-    $longRootParent = Split-Path -Parent $longRoot
+    $longRootParent = [System.IO.Path]::GetDirectoryName($longRoot)
     if (-not $longRootParent) { return $Path }
 
     $node = $Path
     $tail = ''
     while ($node -and ($node -match '~\d')) {
-        $leaf = Split-Path -Leaf $node
-        $parent = Split-Path -Parent $node
+        $leaf = [System.IO.Path]::GetFileName($node)
+        $parent = [System.IO.Path]::GetDirectoryName($node)
         if (-not $parent) { return $Path }
         if ($leaf -match '~\d') {
             # Candidate profile folder. Only substitute when it sits in the
             # same directory as the real profile (both C:\Users).
             if ($parent -ne $longRootParent) { return $Path }
-            if ($tail) { return (Join-Path $longRoot $tail) }
+            if ($tail) { return [System.IO.Path]::Combine($longRoot, $tail) }
             return $longRoot
         }
-        $tail = if ($tail) { Join-Path $leaf $tail } else { $leaf }
+        $tail = if ($tail) { [System.IO.Path]::Combine($leaf, $tail) } else { $leaf }
         $node = $parent
     }
     return $Path

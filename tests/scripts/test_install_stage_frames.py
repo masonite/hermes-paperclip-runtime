@@ -24,6 +24,7 @@ def _frame(result):
 
 
 @pytest.mark.parametrize("case", ["explicit-failure", "write-failure", "unknown", "skipped", "success"])
+@pytest.mark.platforms("posix")
 def test_stage_result_matches_the_actual_exit(tmp_path, case):
     env = _env(tmp_path)
     stage = {"explicit-failure": "repository", "write-failure": "complete",
@@ -77,6 +78,7 @@ def test_real_single_stage_cli_reports_admission_or_execution_failure(tmp_path, 
 
 
 @pytest.mark.parametrize("flag", ["--hermes-home", "-HermesHome"])
+@pytest.mark.platforms("posix")
 def test_manifest_accepts_the_desktop_home_argument(tmp_path, flag):
     home = tmp_path / "custom home"
     result = subprocess.run(["bash", str(SCRIPT), "--manifest", flag, str(home)],

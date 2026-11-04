@@ -1,12 +1,14 @@
 """install.sh child output: one status line on a terminal, the full stream in CI."""
 import os
 from pathlib import Path
-import pty
 import re
 import shlex
 import subprocess
 
 import pytest
+
+if os.name == "posix":
+    import pty
 
 pytestmark = pytest.mark.platforms("posix")
 INSTALL_SH = Path(__file__).resolve().parents[3] / "scripts" / "install.sh"

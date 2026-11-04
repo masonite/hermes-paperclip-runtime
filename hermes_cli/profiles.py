@@ -1088,7 +1088,7 @@ def profile_is_standalone(home: Path) -> bool:
     cfg_path = home / "config.yaml"
     key = str(home)
     try:
-        signature = file_signature(cfg_path.stat())
+        signature = file_signature(cfg_path)
     except FileNotFoundError:
         signature = None
     except OSError as exc:

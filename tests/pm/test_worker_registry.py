@@ -99,7 +99,7 @@ def _child(definitions, code, *, setup=""):
     )
     return subprocess.run(
         [sys.executable, "-I", "-B", "-c", script],
-        input=json.dumps(definitions), capture_output=True, text=True, timeout=30,
+        input=json.dumps(definitions), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
     )
 
 
@@ -129,6 +129,7 @@ def test_definition_import_failures_are_package_errors(tmp_path, monkeypatch, fa
         source.write_text("ExternalPackage = object()\n")
     result = _child(definitions, "", setup=setup)
     assert result.returncode != 0
+    assert result.stderr is not None, result
     assert "InstallError: broken-worker-test:" in result.stderr
     assert "package definition" in result.stderr
     if failure == "dependency":

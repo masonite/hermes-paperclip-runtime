@@ -1412,7 +1412,7 @@ class TestEnvWriteDenylist:
             "GIT_COMMITTER_NAME", "GIT_AUTHOR_NAME", "GIT_TERMINAL_PROMPT",
             "GIT_EDITOR_WIDE",  # near-miss: not the real GIT_EDITOR
             # POSIX case: lowercase exec names are different, inert variables.
-            "git_config_parameters", "ld_preload",
+            pytest.param("git_config_parameters", marks=pytest.mark.platforms("posix")), pytest.param("ld_preload", marks=pytest.mark.platforms("posix")),
         ],
     )
     def test_non_exec_near_misses_still_writable(self, allowed_key):

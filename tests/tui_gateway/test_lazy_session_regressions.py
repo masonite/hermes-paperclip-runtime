@@ -9,10 +9,10 @@ Tests cover:
 """
 
 import threading
+from tests.tui_gateway.thread_fixtures import set_thread_class
 import time
 import types
 from unittest.mock import MagicMock, patch
-
 
 
 # ===========================================================================
@@ -60,7 +60,6 @@ class TestFinalizeSessionUsesAgentSessionId:
         session['session_key'] still holds old value. _finalize_session()
         should end the agent's current session."""
         from tui_gateway import server
-
         db = _make_session_db(tmp_path)
 
         # Create two sessions: parent (already ended by compression) and continuation
@@ -120,7 +119,6 @@ class TestPendingTitleValueError:
     def test_valueerror_clears_pending_title(self, monkeypatch):
         """ValueError from set_session_title should drop pending_title."""
         from tui_gateway import server
-
         mock_db = MagicMock()
         mock_db.set_session_title.side_effect = ValueError("duplicate title")
 
@@ -154,7 +152,7 @@ class TestPendingTitleValueError:
                 self._target()
 
         server._sessions["sid"] = session
-        monkeypatch.setattr(server.threading, "Thread", _ImmediateThread)
+        set_thread_class(monkeypatch, server, _ImmediateThread)
 
         try:
             server.handle_request({

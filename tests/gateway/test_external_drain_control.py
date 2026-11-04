@@ -47,6 +47,35 @@ class TestMarkerContract:
         body = dc.read_drain_request()
         assert body is not None and body["principal"] == "nas"
 
+    @pytest.mark.parametrize("winerror, failures, attempts, cleared", [
+        (32, 1, 2, True), (33, 6, 6, False), (5, 1, 1, False),
+    ])
+    def test_clear_retries_only_bounded_sharing_errors(
+        self, home, monkeypatch, winerror, failures, attempts, cleared,
+    ):
+        from unittest.mock import Mock
+
+        dc.write_drain_request()
+        path = dc.drain_request_path()
+        unlink = type(path).unlink
+        error = PermissionError("marker busy")
+        error.winerror = winerror
+        calls = []
+
+        def contended_unlink(target):
+            calls.append(target)
+            if len(calls) <= failures:
+                raise error
+            return unlink(target)
+
+        monkeypatch.setattr(type(path), "unlink", contended_unlink)
+        sleep = Mock()
+        monkeypatch.setattr(dc.time, "sleep", sleep)
+        assert dc.clear_drain_request() is cleared
+        assert len(calls) == attempts
+        assert sleep.call_count == attempts - 1
+        assert path.exists() is not cleared
+
 
 class TestSuppressNotification:
     """The generic suppress_notification flag on the drain marker.

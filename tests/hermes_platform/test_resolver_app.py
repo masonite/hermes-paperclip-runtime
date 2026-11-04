@@ -7,6 +7,7 @@ import plistlib
 import socket
 import sys
 import threading
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
@@ -46,7 +47,7 @@ def test_locate_reports_expanded_path_when_missing(tmp_path, monkeypatch):
     r = AppResolver(AppDef("thing", sys.platform, "executable", (AppLocation("path", "$THINGROOT/bin/thing"),)))
     res = r.locate()
     assert res.kind == "missing"
-    assert res.candidates[0].value == str(tmp_path / "bin" / "thing")
+    assert Path(res.candidates[0].value) == tmp_path / "bin" / "thing"
 
 
 def test_bundle_presence_and_plist_version(tmp_path):

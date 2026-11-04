@@ -78,6 +78,7 @@ def git_repo_no_remote(tmp_path):
     [(True, False), (False, False), (False, True)],
     ids=["untracked-file-kept", "include-symlink-only-removed", "separate-git-dir-include-symlink-removed"],
 )
+@pytest.mark.require_symlinks
 def test_exit_cleanup_preserves_dirty_worktree(git_repo, tmp_path, monkeypatch, capsys, real_untracked,
                                                separate_git_dir):
     """Exit cleanup must preserve local changes, but not count .worktreeinclude symlinks as changes.

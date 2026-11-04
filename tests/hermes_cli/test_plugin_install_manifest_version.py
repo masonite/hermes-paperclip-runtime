@@ -87,6 +87,7 @@ def test_manifest_version_above_shared_support_is_refused_cleanly(
     assert not (home / "plugins" / ".install-metadata.json").exists()
 
 
+@pytest.mark.require_symlinks
 def test_a_linked_plugin_slot_is_already_installed_not_a_bad_manifest(monkeypatch, tmp_path):
     """A provider's own installer can leave ``plugins/<name>`` as a link into a venv (mnemosyne-hermes
     did). The catalog install must say the slot is taken, not record ``manifest_invalid``."""

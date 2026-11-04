@@ -62,6 +62,7 @@ def test_refresh_from_the_pinned_home_still_rewrites_a_stale_unit(unit, monkeypa
 class TestTempHomeServiceDefinitionGuard:
     """temp_home_in_service_definition() — structural temp-dir detection."""
 
+    @pytest.mark.platforms("posix")
     def test_detects_tmp_home_in_systemd_unit(self):
         unit = '[Service]\nEnvironment="HERMES_HOME=/tmp/hermes-e2e-41264"\n'
         assert (

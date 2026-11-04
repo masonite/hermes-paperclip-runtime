@@ -39,6 +39,7 @@ class _AbortedStartupRunner:
 
 
 @pytest.mark.asyncio
+@pytest.mark.platforms("posix")
 async def test_sigusr1_handler_installed_by_start_gateway_logs_graceful_restart(tmp_path, monkeypatch, caplog):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
     for target, value in (

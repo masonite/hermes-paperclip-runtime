@@ -159,7 +159,7 @@ def test_literal_tilde_hermes_home_expands_before_any_reader(tmp_path):
         capture_output=True, text=True, timeout=120, cwd=cwd, env=env,
     )
     assert probe.returncode == 0, probe.stderr
-    assert probe.stdout.strip() == str(fake_home / ".x")
+    assert Path(probe.stdout.strip()) == fake_home / ".x"
 
 
 def test_normalize_hermes_home_env_rewrites_tilde_and_leaves_absolute_alone(tmp_path, monkeypatch):
@@ -169,7 +169,7 @@ def test_normalize_hermes_home_env_rewrites_tilde_and_leaves_absolute_alone(tmp_
     monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setenv("HERMES_HOME", "~/.x")
     _startup_fast.normalize_hermes_home_env()
-    assert os.environ["HERMES_HOME"] == str(tmp_path / ".x")
+    assert Path(os.environ["HERMES_HOME"]) == tmp_path / ".x"
 
     monkeypatch.setenv("HERMES_HOME", str(tmp_path / "abs"))
     _startup_fast.normalize_hermes_home_env()

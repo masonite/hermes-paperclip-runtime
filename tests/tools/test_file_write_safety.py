@@ -548,6 +548,7 @@ class TestBomHandling:
         assert target.read_bytes() == original
 
     @pytest.mark.parametrize("op", ["add", "move"])
+    @pytest.mark.require_symlinks
     def test_a_dangling_symlink_destination_is_occupied(self, ops, tmp_path: Path, op):
         # `[ -f ]` and `[ -e ]` follow the link, so a dangling one read as an absent path: Add
         # followed it and created its target, Move replaced the link. The entry is there.

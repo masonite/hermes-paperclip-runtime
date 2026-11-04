@@ -366,6 +366,7 @@ class TestExcludedDirectories:
         assert "Committed backend rules" not in result
 
 
+@pytest.mark.require_symlinks
 class TestSymlinkedHintTargets:
     """A hint file's resolved target must stay inside the working tree and off
     the read deny-list; the link's in-tree name does not sanitize its target (#116429)."""
@@ -422,6 +423,7 @@ class TestHomeWorkingDirGuard:
     def home_tree(self, tmp_path, monkeypatch):
         """A fake $HOME holding unrelated hint files across its subtree."""
         monkeypatch.setenv("HOME", str(tmp_path))  # Path.home() reads os.environ on macOS fallback
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
         for rel in ("notes/AGENTS.md", ".hermes/AGENTS.md", ".hermes/skills/s1/AGENTS.md",
                     "projects/whatever/CLAUDE.md"):
             p = tmp_path / rel

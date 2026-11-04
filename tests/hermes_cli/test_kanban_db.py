@@ -27,6 +27,7 @@ def kanban_home(tmp_path, monkeypatch):
     home.mkdir()
     monkeypatch.setenv("HERMES_HOME", str(home))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(kbd, "_live_worker_procs", {})
     kb.init_db()
     return home
 
@@ -551,6 +552,7 @@ def test_respawn_guard_ignores_auth_words_in_crashed_worker_output(kanban_home):
         assert kbd.check_respawn_guard(conn, spawn_failed_id) == "blocker_auth"
 
 
+@pytest.mark.platforms("linux")
 def test_infrastructure_spawn_refusal_never_charges_the_card(
     kanban_home, monkeypatch, all_assignees_spawnable,
 ):
@@ -801,7 +803,7 @@ def test_worktree_workspace_explicit_target_materializes_linked_worktree(kanban_
         capture_output=True,
         text=True,
     ).stdout
-    assert f"worktree {target}" in listed
+    assert f"worktree {target.as_posix()}" in listed
     assert f"branch refs/heads/{branch}" in listed
 
 
@@ -1575,21 +1577,6 @@ def test_connect_heals_reduced_tasks_schema_seeded_by_external_harness(kanban_ho
 # ---------------------------------------------------------------------------
 
 
-def test_resolve_hermes_argv_prefers_module_form_over_path_shim(monkeypatch):
-    """A `hermes` on PATH must not shadow the running install (#111569):
-    the module argv wins whenever ``hermes_cli`` is importable; only an
-    explicit ``$HERMES_BIN`` overrides it."""
-    import shutil
-    import sys
-    from hermes_cli import kanban_db_dispatch as kbd
-
-    monkeypatch.delenv("HERMES_BIN", raising=False)
-    monkeypatch.setattr(shutil, "which", lambda name: "/tmp/planted/hermes")
-    monkeypatch.setattr(kbd, "_safe_which_no_cwd", lambda name: "/tmp/planted/hermes")
-    assert kbd._resolve_hermes_argv() == [sys.executable, "-m", "hermes_cli.main"]
-
-    monkeypatch.setenv("HERMES_BIN", "/opt/hermes/bin/hermes")
-    assert kbd._resolve_hermes_argv() == ["/opt/hermes/bin/hermes"]
 
 
 

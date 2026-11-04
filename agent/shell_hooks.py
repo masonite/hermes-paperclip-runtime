@@ -29,7 +29,7 @@ try:
 except ImportError:  # pragma: no cover
     fcntl = None  # type: ignore[assignment]
 
-from hermes_constants import get_hermes_home
+from hermes_constants import get_hermes_home, hermes_home_key
 from utils import atomic_json_write
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ _allowlist_write_lock = threading.Lock()
 
 
 def _home_key() -> str:
-    return str(get_hermes_home().expanduser().resolve())
+    return hermes_home_key(get_hermes_home())
 
 
 def _forget_home_registrations(registry: set[tuple], lock: threading.Lock) -> None:

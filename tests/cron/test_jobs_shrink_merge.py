@@ -211,6 +211,7 @@ def test_nested_create_survives_outer_stale_save(hermes_env):
     assert seed["id"] in ids
 
 
+@pytest.mark.require_symlinks
 def test_symlinked_store_saves_by_rename_not_in_place_copy(hermes_env, tmp_path, monkeypatch):
     """jobs.json symlinked into another dir (treated as another filesystem) must still be
     published by an atomic rename — never the EXDEV in-place copy fallback, which tears the

@@ -54,12 +54,11 @@ def test_portable_validation_fails_orphan_and_reports_availability(tmp_path: Pat
     assert not report.ok
     assert any("no matching mcp.json server" in failure for failure in report.failures)
 
-    app = tmp_path / "example-app"
     declared = _portable_plugin(
         tmp_path / "declared",
         {"worker": {"type": "stdio", "command": "python"}},
         {"worker": {
-            "app": {"darwin": {"presence": "executable", "location": str(app)}},
+            "app": {"darwin": {"presence": "executable", "location": "/Applications/example-app"}},
             "requires": {"app": True},
         }},
     )

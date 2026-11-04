@@ -3,6 +3,7 @@ appended to final gateway replies."""
 
 from __future__ import annotations
 
+import os
 
 import pytest
 
@@ -35,10 +36,11 @@ def test_model_short_drops_vendor_prefix(model, expected):
 
 def test_home_relative_cwd_collapses_home(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     sub = tmp_path / "projects" / "hermes"
     sub.mkdir(parents=True)
     result = _home_relative_cwd(str(sub))
-    assert result == "~/projects/hermes"
+    assert result == os.path.join("~", "projects", "hermes")
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +49,7 @@ def test_home_relative_cwd_collapses_home(tmp_path, monkeypatch):
 
 def test_format_footer_all_fields(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setenv("TERMINAL_CWD", str(tmp_path / "projects" / "hermes"))
     (tmp_path / "projects" / "hermes").mkdir(parents=True)
     out = format_runtime_footer(
@@ -56,21 +59,21 @@ def test_format_footer_all_fields(monkeypatch, tmp_path):
         cwd=None,  # falls back to TERMINAL_CWD env var
         fields=("model", "context_pct", "cwd"),
     )
-    assert out == "gpt-5.4 · 68% · ~/projects/hermes"
+    assert out == f"gpt-5.4 · 68% · {os.path.join('~', 'projects', 'hermes')}"
 
 
-def test_format_footer_skips_missing_context_length():
+def test_format_footer_skips_missing_context_length(tmp_path):
     out = format_runtime_footer(
         model="openai/gpt-5.4",
         context_tokens=500,
         context_length=None,
-        cwd="/tmp/wd",
+        cwd=str(tmp_path / "wd"),
         fields=("model", "context_pct", "cwd"),
     )
     # context_pct dropped silently; no "?%" artifact
     assert "%" not in out
     assert "gpt-5.4" in out
-    assert "/tmp/wd" in out
+    assert str(tmp_path / "wd") in out
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +203,7 @@ def test_format_footer_latency_zero_renders_sub_second():
 
 def test_format_footer_latency_in_field_order(monkeypatch, tmp_path):
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     out = format_runtime_footer(
         model="openai/gpt-5.4",
         context_tokens=68_000,
@@ -242,7 +246,7 @@ def test_build_footer_line_threads_turn_seconds(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_default_build_footer_line_ignores_turn_seconds(monkeypatch):
+def test_default_build_footer_line_ignores_turn_seconds(monkeypatch, tmp_path):
     """build_footer_line with default fields is unaffected by turn_seconds."""
     monkeypatch.delenv("TERMINAL_CWD", raising=False)
     common = dict(
@@ -251,11 +255,11 @@ def test_default_build_footer_line_ignores_turn_seconds(monkeypatch):
         model="openai/gpt-5.4",
         context_tokens=50_247,
         context_length=1_000_000,
-        cwd="/var/data",
+        cwd=str(tmp_path / "data"),
     )
     baseline = build_footer_line(**common)
     with_timing = build_footer_line(**common, turn_seconds=125.0)
-    assert baseline == "gpt-5.4 · 5% · /var/data"
+    assert baseline == f"gpt-5.4 · 5% · {tmp_path / 'data'}"
     assert with_timing == baseline
 
 

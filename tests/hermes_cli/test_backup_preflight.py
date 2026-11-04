@@ -4,6 +4,7 @@ import sqlite3
 import subprocess
 import sys
 from pathlib import Path
+from contextlib import closing
 
 
 def test_preflight_captures_committed_wal_without_application_imports(tmp_path):
@@ -42,7 +43,7 @@ runpy.run_path(sys.argv[0], run_name='__main__')
             )
             assert result.returncode == 0, result.stderr
             backup = Path(json.loads(result.stdout)["path"])
-            with sqlite3.connect(backup) as snapshot:
+            with closing(sqlite3.connect(backup)) as snapshot:
                 assert snapshot.execute("SELECT * FROM messages").fetchall() == [("committed only in WAL",)]
                 assert snapshot.execute("PRAGMA integrity_check").fetchone() == ("ok",)
         assert len(list(home.glob("state.db.pre-update-emergency-*.bak"))) == 2

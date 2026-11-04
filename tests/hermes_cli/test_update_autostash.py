@@ -8,6 +8,7 @@ import pytest
 
 from hermes_cli import main as hermes_main, update_cmd
 from tests.hermes_cli.test_update_target_identity import git, update_tree
+from tests.hermes_cli.update_fault_fixtures import patch_update_run
 from datetime import UTC
 
 
@@ -37,7 +38,7 @@ def test_update_preserves_local_work_and_rescues_orphan_before_reset(
     original = subprocess.run
     resets = []
 
-    def fault(command, *args, **kwargs):
+    def fault(real_run, command, *args, **kwargs):
         if 'reset' in command and '--hard' in command:
             refs = original(['git', 'for-each-ref', '--format=%(objectname)',
                              'refs/hermes-update-backups/'], cwd=t.clone,
@@ -47,9 +48,9 @@ def test_update_preserves_local_work_and_rescues_orphan_before_reset(
         if ((failure == 'ref' and 'update-ref' in command and '-d' not in command)
                 or (failure == 'reset' and 'reset' in command and '--hard' in command)):
             return subprocess.CompletedProcess(command, 128, stdout='', stderr='fixture I/O refusal')
-        return original(command, *args, **kwargs)
+        return real_run(command, *args, **kwargs)
 
-    monkeypatch.setattr(subprocess, 'run', fault)
+    patch_update_run(monkeypatch, fault)
     if failure == 'head':
         monkeypatch.setattr(update_cmd, '_capture_head_sha', lambda *_: None)
     if failure == 'reset':

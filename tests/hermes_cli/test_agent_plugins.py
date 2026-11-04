@@ -95,13 +95,11 @@ def test_rejects_invalid_manifests(tmp_path: Path, manifest: object) -> None:
 
 
 def test_server_declaration_joins_mcp_and_preserves_liveness(tmp_path: Path) -> None:
-    app = tmp_path / "example-app"
-    app.write_text("", encoding="utf-8")
     _write_json(
         tmp_path / "plugin.json",
         _manifest(extensions={
             "com.nousresearch.hermes": {"servers": {"worker": {
-                "app": {"darwin": {"presence": "executable", "location": str(app)}},
+                "app": {"darwin": {"presence": "executable", "location": "/Applications/example-app"}},
                 "requires": {"app": True},
                 "liveness": {"kind": "static"},
             }}}

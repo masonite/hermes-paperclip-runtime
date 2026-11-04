@@ -958,6 +958,7 @@ def test_gateway_dispatcher_disables_corrupt_board_without_traceback(
     from hermes_cli import kanban_db_connect as _kbc
 
     runner = object.__new__(GatewayRunner)
+    monkeypatch.setattr(kbd, "_live_worker_procs", {})
     runner._running = True
     corrupt_db = tmp_path / "kanban.db"
     corrupt_db.write_text("not sqlite", encoding="utf-8")

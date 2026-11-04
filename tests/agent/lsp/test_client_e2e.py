@@ -26,7 +26,8 @@ def _client(workspace: Path, script: str = "clean", **extra_env: str) -> LSPClie
     return LSPClient(
         server_id=f"mock-{script}",
         workspace_root=str(workspace),
-        command=[sys.executable, MOCK_SERVER],
+        # The Windows venv launcher holds stdout open after the mock closes it.
+        command=[sys._base_executable, MOCK_SERVER],
         env=env,
         cwd=str(workspace),
     )
@@ -89,8 +90,9 @@ async def test_aborted_start_reports_exit_status_and_stderr_tail(tmp_path: Path)
     assert client.state == "error"
     assert client._proc is None
     message = str(excinfo.value)
-    # negative returncode rendered as a signal, not a bare code
-    assert "signal" in message
+    code = client._exit_code
+    assert code is not None and code != 0
+    assert (f"signal {-code}" if code < 0 else f"code {code}") in message
     # stderr tail reached the failure report
     assert "JavaScript heap out of memory" in message
     await client.shutdown()
@@ -126,7 +128,8 @@ async def test_reader_exit_at_end_of_initialization_retires_client(tmp_path: Pat
     else:
         reader_task = client._reader_task
         if reader_task is not None:
-            await asyncio.wait_for(asyncio.shield(reader_task), timeout=3.0)
+            # Windows process-tree cleanup has its own 15-second taskkill budget.
+            await asyncio.wait_for(asyncio.shield(reader_task), timeout=20.0)
 
     assert client.state == "error"
     assert not client.is_running
@@ -205,7 +208,7 @@ async def test_reader_failure_retires_client_and_rejects_later_work(
     assert reader_task is not None
     try:
         version = await client.open_file(str(f), language_id="python")
-        await asyncio.wait_for(asyncio.shield(reader_task), timeout=3.0)
+        await asyncio.wait_for(asyncio.shield(reader_task), timeout=20.0)
 
         assert not client.is_running
         await asyncio.wait_for(proc.wait(), timeout=3.0)

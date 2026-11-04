@@ -1364,7 +1364,6 @@ class ProcessRegistry(ProcessTerminationMixin, ProcessCheckpointMixin):
                 return
             stdout = proc.stdout
             raw_read = getattr(getattr(stdout, "buffer", None), "read1", None)
-
             def _read_once():
                 """One 4 KiB read: decoded text ('' for a partial multibyte tail), None at EOF."""
                 if raw_read is None:  # mocked/alternate streams without a raw buffer: less "live"
@@ -1374,11 +1373,17 @@ class ProcessRegistry(ProcessTerminationMixin, ProcessCheckpointMixin):
             # select() needs a real OS fd; mocked streams (tests, adapters) may lack
             # fileno() and use the blocking read instead.
             try:
-                fd = stdout.fileno() if raw_read is not None and not _IS_WINDOWS else None
+                fd = stdout.fileno() if raw_read is not None else None
             except Exception:
                 fd = None
             if not (isinstance(fd, int) and fd >= 0):
                 fd = None
+            if _IS_WINDOWS and fd is not None:
+                from types import SimpleNamespace
+                from tools.environments.base_output import _drain_fd_windows
+
+                _drain_fd_windows(proc, fd, SimpleNamespace(append=_append_chunk), decoder)
+                return
             if fd is not None:
                 import select as _select
                 session._reader_selectable = True
@@ -1644,38 +1649,6 @@ class ProcessRegistry(ProcessTerminationMixin, ProcessCheckpointMixin):
             "termination_source": session.termination_source,
         }
 
-    def _release_finished_handles(self, session: ProcessSession):
-        """Close a finished session's OS handles (Popen pipes / PTY master).
-
-        Best-effort and idempotent: the session may have no local Popen (env
-        backends, detached recovery), or the handles may already be closed by
-        the reader loop / kill path. Closing a Popen's stream objects does not
-        kill anything — the child has already exited — it only releases the
-        parent's pipe FDs, which is exactly the retained-resource leak.
-        """
-        proc = session.process
-        if proc is not None:
-            for stream in (proc.stdout, proc.stderr, proc.stdin):
-                if stream is not None:
-                    with suppress(OSError, ValueError):  # a stdin flush can hit EPIPE
-                        stream.close()
-        if session._pty is not None:
-            # A live ptyprocess reader sits in a blocking read holding the PTY file
-            # object's buffer lock, and that read only ends once every holder of
-            # the slave side is gone. A descendant that setsid()s past the kill
-            # keeps it open, so close() here would block forever (under _lock on
-            # the prune path). The reader closes the PTY itself via
-            # _finish_reader once its read ends. pywinpty reads don't block, so
-            # Windows closes here as before.
-            reader = session._reader_thread
-            if (not _IS_WINDOWS and reader is not None and reader.is_alive()
-                    and reader is not threading.current_thread()):
-                return
-            # ptyprocess/pywinpty close() is idempotent (``closed`` flag) and
-            # closes the master fd exactly once; it raises only if the child
-            # ignores SIGKILL, which we don't want to surface on the finish path.
-            with suppress(Exception):
-                session._pty.close()
 
     # ----- Query Methods -----
 

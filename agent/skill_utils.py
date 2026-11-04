@@ -203,7 +203,7 @@ def _config_cache_key(config_path: Path) -> Optional[tuple[str, int, int, int, i
     """``(path, *file_signature)`` identity of config.yaml, or None when unreadable/absent."""
     try:
         from utils import file_signature
-        return (str(config_path), *file_signature(config_path.stat()))
+        return (str(config_path), *file_signature(config_path))
     except OSError:
         return None
 

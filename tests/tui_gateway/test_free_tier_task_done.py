@@ -4,6 +4,7 @@ offer (``hermes_cli.free_tier_offer``); any user intervention while it ran disqu
 from __future__ import annotations
 
 import threading
+from tests.tui_gateway.thread_fixtures import set_thread_class
 import types
 
 import pytest
@@ -135,7 +136,7 @@ def test_prompt_submit_records_only_untouched_turns(monkeypatch, touch, recorded
     monkeypatch.setattr(server, "make_stream_renderer", lambda cols: None)
     monkeypatch.setattr(server, "render_message", lambda raw, cols: None)
     monkeypatch.setattr(server, "_sync_session_key_after_compress", lambda *a, **kw: None)
-    monkeypatch.setattr(server.threading, "Thread", _ImmediateThread)
+    set_thread_class(monkeypatch, server, _ImmediateThread)
     monkeypatch.setattr(server, "_load_busy_input_mode", lambda: "queue")
     session = _session(agent=_Agent(), running=False, history_version=0, image_counter=0, cols=80,
                        slash_worker=None, show_reasoning=False, tool_progress_mode="all", pending_title=None)

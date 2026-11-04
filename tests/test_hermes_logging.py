@@ -253,6 +253,7 @@ class TestSetupLogging:
         profile_home = tmp_path / "profile-b"
         profile_home.mkdir()
         hermes_logging.setup_logging(hermes_home=hermes_home)
+        logging.getLogger("agent.conversation_loop.routed-home-test").info("default-home probe")
         assert hermes_logging.enable_profile_log_routing([hermes_home, profile_home]) is True
         hermes_logging.setup_logging(hermes_home=profile_home)
 
@@ -861,7 +862,7 @@ class TestExternalRotationRecovery:
         assert "AFTER rotation" not in rotated.read_text(encoding="utf-8-sig")
 
 
-def test_eio_from_file_handler_names_the_path_once_then_recovers(tmp_path, capsys):
+def test_eio_from_file_handler_names_the_path_once_then_recovers(tmp_path, capsys, monkeypatch):
     """A failing log destination is named once (no per-record traceback) and writes resume
     once the file is reachable again."""
 
@@ -880,13 +881,18 @@ def test_eio_from_file_handler_names_the_path_once_then_recovers(tmp_path, capsy
     )
     handler.setFormatter(logging.Formatter("%(message)s"))
     try:
-        handler.stream.close()
-        handler.stream = _SickStream()
-        for i in range(5):
-            handler.handle(logging.LogRecord("t", logging.INFO, __file__, 0, f"sick {i}", (), None))
-        err = capsys.readouterr().err
-        assert "--- Logging error ---" not in err
-        assert err.count(str(path)) == 1 and "Input/output error" in err
+        if handler.stream is not None:
+            handler.stream.close()
+        with monkeypatch.context() as unavailable:
+            unavailable.setattr(handler, "_open", lambda: _SickStream())
+            if hasattr(handler, "do_open"):
+                unavailable.setattr(handler, "do_open", lambda *_a, **_k: _SickStream())
+            handler.stream = _SickStream()
+            for i in range(5):
+                handler.handle(logging.LogRecord("t", logging.INFO, __file__, 0, f"sick {i}", (), None))
+            err = capsys.readouterr().err
+            assert "--- Logging error ---" not in err
+            assert err.count(str(path)) == 1 and "Input/output error" in err
 
         # Stream dropped, so the next emit reopens the real file and logging resumes.
         handler.handle(logging.LogRecord("t", logging.INFO, __file__, 0, "recovered", (), None))
@@ -914,8 +920,11 @@ def test_eio_after_successful_reopen_still_names_the_path_once(tmp_path, capsys)
     )
     handler.setFormatter(logging.Formatter("%(message)s"))
     try:
-        handler._builtin_open = lambda *_a, **_kw: _SickStream()
-        handler.stream.close()
+        handler._open = lambda: _SickStream()
+        if hasattr(handler, "do_open"):
+            handler.do_open = lambda *_a, **_kw: _SickStream()
+        if handler.stream is not None:
+            handler.stream.close()
         handler.stream = _SickStream()
         for i in range(25):
             handler.handle(logging.LogRecord("t", logging.INFO, __file__, 0, f"sick {i}", (), None))
@@ -955,7 +964,7 @@ class TestSafeStderr:
         handler = logging.StreamHandler(result)
         handler.handle(logging.LogRecord("unicode", logging.INFO, "", 0, "Session — 日本", (), None))
         handler.flush()
-        assert fake.buffer.getvalue() == "Session — 日本\n".encode()
+        assert fake.buffer.getvalue() == f"Session — 日本{os.linesep}".encode()
 
 
 

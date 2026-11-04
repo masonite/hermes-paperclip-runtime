@@ -14,6 +14,8 @@ import stat
 
 import pytest
 
+pytestmark = pytest.mark.platforms("posix")
+
 import hermes_cli.browser_connect as bc
 import tools.computer_use.tool as cu
 import tools.vision_tools as vt

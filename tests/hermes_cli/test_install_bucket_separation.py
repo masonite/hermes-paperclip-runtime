@@ -46,7 +46,7 @@ class TestProfileCopyExclusions:
         for rel, content in kept.items():
             path = home / rel
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(content, encoding="utf-8")
+            path.write_text(content, encoding="utf-8", newline="\n")
         for name in excluded:
             path = home / name / "must-not-copy"
             path.parent.mkdir(parents=True, exist_ok=True)

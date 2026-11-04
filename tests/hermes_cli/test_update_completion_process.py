@@ -110,6 +110,8 @@ def transition(tmp_path):
                  package / "source_completion.py")
     shutil.copy2(Path(update_completion.__file__).with_name("update_lock.py"),
                  package / "update_lock.py")
+    shutil.copy2(Path(update_completion.__file__).with_name("_early_recovery.py"),
+                 package / "_early_recovery.py")
     shutil.copy2(Path(update_completion.__file__).with_name("_subprocess_compat.py"),
                  package / "_subprocess_compat.py")
     (package / "gitlock.py").write_text(
@@ -260,6 +262,8 @@ def _run_cmd_update(monkeypatch, request, capsys):
     monkeypatch.setattr(main, "_update_preflight_handled", lambda args: False)
     monkeypatch.setattr(main, "_install_hangup_protection", lambda **kw: None)
     monkeypatch.setattr(main, "_finalize_update_output", lambda state: None)
+    monkeypatch.setattr(main, "_resume_windows_gateways_after_update",
+                        lambda token: token.update(resume_needed=False))
 
     def complete(args, gateway_mode):
         update_receipt.begin_update_receipt()

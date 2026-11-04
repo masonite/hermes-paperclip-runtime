@@ -87,7 +87,7 @@ def _head(path: Path) -> str:
 def test_catalog_platform_mismatch_refuses_before_install(world):
     from hermes_platform.host.facts import os_family
     host = os_family()
-    other = "linux" if host == "windows" else "windows"
+    other = "linux" if host == "win32" else "windows"
     entry = pc_cat.PluginCatalogEntry(
         name="cat-plugin", repo=world["repo"].as_uri(), sha=world["sha1"],
         description="d", maintainer="t", platforms=[other],
@@ -298,6 +298,7 @@ def test_update_of_a_subdir_install_keeps_files_the_user_created_or_edited(world
     assert not (target / "dashboard").exists() and not (target / "hooks" / "run.cjs").exists()
 
 
+@pytest.mark.require_symlinks
 def test_repin_keeps_a_wholly_ignored_data_dir_in_a_git_checkout(world):
     """A single ``!! data/`` status entry must preserve every file below that ignored directory."""
     repo = world["repo"]

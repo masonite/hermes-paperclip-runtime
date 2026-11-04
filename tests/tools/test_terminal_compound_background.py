@@ -182,10 +182,10 @@ class TestRewriteIsValidBash:
             "A && B & echo x\nC && D & echo y && E & echo z",
         ],
     )
-    def test_rewrite_parses(self, command):
+    def test_rewrite_parses(self, command, real_bash):
         rewritten = rewrite(command)
         result = subprocess.run(
-            ["bash", "-n", "-c", rewritten],
+            [real_bash, "-n", "-c", rewritten],
             capture_output=True,
             text=True,
         )
@@ -193,11 +193,11 @@ class TestRewriteIsValidBash:
             f"rewrite produced invalid bash: {rewritten!r}\n{result.stderr}"
         )
 
-    def test_trailing_statement_actually_runs(self):
+    def test_trailing_statement_actually_runs(self, real_bash):
         # End-to-end: the command after the backgrounded compound must run.
         rewritten = rewrite("echo first && true & echo SECOND_RAN")
         result = subprocess.run(
-            ["bash", "-c", rewritten], capture_output=True, text=True
+            [real_bash, "-c", rewritten], capture_output=True, text=True
         )
         assert result.returncode == 0
         assert "SECOND_RAN" in result.stdout

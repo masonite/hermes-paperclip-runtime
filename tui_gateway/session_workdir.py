@@ -132,9 +132,10 @@ def _declared_remote_profile_cwd(profile_home) -> str | None:
 def _is_remote_cwd_shape(raw: str) -> bool:
     """An ssh working directory the remote shell can resolve: ``~``, ``~/…`` or absolute (a relative one would be
     stored and git-probed relative to the gateway's own cwd)."""
+    import posixpath
     from hermes_cli.config import _is_ssh_remote_tilde_cwd
 
-    return _is_ssh_remote_tilde_cwd("ssh", raw) or os.path.isabs(raw)
+    return _is_ssh_remote_tilde_cwd("ssh", raw) or posixpath.isabs(raw) or os.path.isabs(raw)
 
 
 def _is_container_path(raw: str) -> bool:
@@ -248,7 +249,7 @@ def _resolve_create_cwd(params: dict, source: str, profile_home) -> tuple[bool, 
         if params.get("cwd_explicit"):
             explicit_cwd = True
             session_cwd = raw_cwd
-        elif session_cwd and session_cwd == os.path.abspath(os.path.expanduser(raw_cwd)):
+        elif session_cwd and session_cwd in (raw_cwd, os.path.abspath(os.path.expanduser(raw_cwd))):
             explicit_cwd = True
     return explicit_cwd, session_cwd, remote_cwd
 

@@ -203,6 +203,7 @@ class TestZeroMatchProbeEngineParity:
         assert "line-oriented" not in (r.warning or "")
 
 
+@pytest.mark.require_symlinks
 class TestSymlinkedRootOnTheFilesLane:
     """A symlinked root must be searched on the files lane, on every engine (#116270).
 

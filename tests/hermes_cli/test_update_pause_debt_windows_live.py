@@ -177,6 +177,8 @@ def test_a_running_service_owes_its_gateway_until_that_gateway_is_ready(tmp_path
                                                   "PYTHONIOENCODING=utf-8"]) + "\n", encoding="utf-8")
     name = f"hermes-r8-debt-{gateway}-{os.getpid()}"
     created = _sc("create", name, "binPath=", f'"{exe}"', "start=", "demand")
+    if created.returncode == 5:
+        pytest.skip("SCM service creation is denied to this user")
     assert created.returncode == 0, created.stdout + created.stderr
     if gateway == "absent":  # the budget only bounds how long the miss takes to report
         monkeypatch.setattr(w, "_SERVICE_READY_TIMEOUT_S", 20.0, raising=False)
@@ -225,6 +227,8 @@ def test_a_launch_recovering_an_unready_service_keeps_the_debt_without_stalling(
                                        encoding="utf-8")
     name = f"hermes-r9-recover-{os.getpid()}"
     created = _sc("create", name, "binPath=", f'"{exe}"', "start=", "demand")
+    if created.returncode == 5:
+        pytest.skip("SCM service creation is denied to this user")
     assert created.returncode == 0, created.stdout + created.stderr
     # The record a killed update left; the tree gate passes (HEAD and tracked changes as stamped).
     pause_record.write(pause_record.stamp_tree({
@@ -268,7 +272,7 @@ def test_a_pause_force_kills_only_the_process_it_discovered(tmp_path, monkeypatc
     monkeypatch.setenv("HERMES_HOME", str(home))
     monkeypatch.setenv("HERMES_RESTART_DRAIN_TIMEOUT", "1")
     # Never answers its pause, so it survives the drain and reaches the force-kill.
-    victim = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"], stdin=subprocess.DEVNULL)
+    victim = subprocess.Popen([sys._base_executable, "-c", "import time; time.sleep(600)"], stdin=subprocess.DEVNULL)
     try:
         born = psutil.Process(victim.pid).create_time()
         # The gateway discovered at this PID: this very process, or one born earlier that exited
@@ -284,5 +288,6 @@ def test_a_pause_force_kills_only_the_process_it_discovered(tmp_path, monkeypatc
         else:
             assert victim.poll() is None, "force-kill took a process born after discovery (a reused PID)"
     finally:
-        subprocess.run(["taskkill", "/T", "/F", "/PID", str(victim.pid)], capture_output=True, check=False)
+        if victim.poll() is None:
+            victim.kill()
         victim.wait(timeout=30)

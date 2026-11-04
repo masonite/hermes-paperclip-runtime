@@ -340,8 +340,7 @@ class TestDetectOpenclawProcesses:
         count is not the assertion, and pinning it breaks whenever the host
         shells out once more than the dev box did.
         """
-        with patch.object(claw_mod, "subprocess") as mock_subprocess:
-            mock_subprocess.run.return_value = MagicMock(returncode=0, stdout="")
+        with patch("hermes_cli._subprocess_compat.bounded_probe_run", return_value=MagicMock(returncode=0, stdout="")):
             result = claw_mod._detect_openclaw_processes()
             assert result == []
 

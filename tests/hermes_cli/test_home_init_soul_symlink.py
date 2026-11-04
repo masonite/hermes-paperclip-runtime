@@ -9,6 +9,8 @@ wiring and stays a link.
 
 import pytest
 
+pytestmark = pytest.mark.require_symlinks
+
 from hermes_cli.config import DEFAULT_SOUL_MD, _ensure_default_soul_md
 from hermes_cli.config_home import initialize_home
 

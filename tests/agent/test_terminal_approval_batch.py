@@ -136,7 +136,8 @@ def test_desktop_publishes_final_commands_before_wait_and_runs_in_order(tmp_path
             assert executed[1][2][-1] == [c.id for c in calls[:-1]]
             assert "first" not in {call_id for flush in executed[0][2] for call_id in flush}
             assert [m["tool_call_id"] for m in messages] == [c.id for c in calls]
-            assert str(nested) in json.loads(messages[-1]["content"])["output"]
+            from tools.environments.local import _bash_safe_path
+            assert _bash_safe_path(str(nested)) in json.loads(messages[-1]["content"])["output"]
             assert approval.list_gateway_approvals(key) == []
         finally:
             agent.interrupt("test cleanup")

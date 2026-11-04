@@ -258,7 +258,7 @@ def backend_and_session(tmp_path, monkeypatch):
     backend, session = tmp_path / "backend", tmp_path / "session"
     for folder, code in ((backend, 0), (session, 1)):
         folder.mkdir()
-        (folder / "check.sh").write_text(f"pwd\nexit {code}\n", encoding="utf-8")
+        (folder / "check.py").write_text(f"import os,sys\nprint(os.getcwd())\nsys.exit({code})\n", encoding="utf-8")
     monkeypatch.chdir(backend)
     monkeypatch.delenv("TERMINAL_CWD", raising=False)
 
@@ -277,7 +277,7 @@ def _evaluate_with_done_judge(mgr):
 def test_gate_runs_in_the_session_workspace_not_the_backend_directory(backend_and_session):
     _backend, session, bind = backend_and_session
     mgr = _mgr_with_goal("gate-cwd-sid")
-    mgr.add_gate("sh check.sh")
+    mgr.add_gate(f'"{sys._base_executable}" check.py')
     unbind = bind(session)
     try:
         decision, judge = _evaluate_with_done_judge(mgr)
@@ -295,7 +295,7 @@ def test_missing_session_workspace_pauses_instead_of_running_elsewhere(backend_a
     _backend, _session, bind = backend_and_session
     missing = tmp_path / "gone"
     mgr = _mgr_with_goal("gate-missing-cwd-sid")
-    mgr.add_gate("sh check.sh")
+    mgr.add_gate(f'"{sys._base_executable}" check.py')
     unbind = bind(missing)
     try:
         with patch("hermes_cli.goals.run_gate") as run:
@@ -317,7 +317,7 @@ def test_gate_without_a_session_workspace_keeps_the_launch_directory(backend_and
     backend, _session, _bind = backend_and_session
     clear_session_cwd()
     mgr = _mgr_with_goal("gate-launch-cwd-sid")
-    mgr.add_gate("sh check.sh")
+    mgr.add_gate(f'"{sys._base_executable}" check.py')
     decision, judge = _evaluate_with_done_judge(mgr)
     judge.assert_called_once()
     assert decision["verdict"] == "done"

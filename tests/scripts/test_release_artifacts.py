@@ -31,6 +31,7 @@ def test_windows_metadata_is_read_from_package_and_stale_stamp_is_rejected(tmp_p
     tag, commit = 'v1.2.3', 'a' * 40
     root = tmp_path / 'release'
     root.mkdir()
+    (root / 'version-info-x64.json').write_text(json.dumps({'productVersion': '1.2.3'}), encoding='utf-8')
     package = root / 'Product-1.2.3-win-x64.msix'
     manifest = '<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"><Identity Name="Product" Publisher="CN=Test" Version="1.2.3.0" ProcessorArchitecture="x64"/><Applications><Application Id="App"/></Applications></Package>'
 
@@ -51,6 +52,7 @@ def test_windows_metadata_is_read_from_package_and_stale_stamp_is_rejected(tmp_p
     assert metadata['version'] == '1.2.3.0'
     assert metadata['publisher'] == 'CN=Test'
     assert metadata['applicationId'] == 'App'
+    assert metadata['executableVersion'] == '1.2.3'
     assert package.read_bytes() == original
     assert 'receiverProtocol' not in metadata
     write_package(commit, receiver=1)

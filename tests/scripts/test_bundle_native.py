@@ -19,6 +19,7 @@ import pytest
 from scripts.bundles import native
 
 
+@pytest.mark.require_symlinks
 def test_bundle_stages_git_tree_and_runs_native_children_before_manifest(tmp_path, monkeypatch):
     import importlib
     import inspect
@@ -575,6 +576,7 @@ def test_native_dispatch_isolates_process_state_on_real_child_failure(tmp_path, 
     assert not list(out.glob(".build-*"))
 
 
+@pytest.mark.require_symlinks
 def test_native_preparation_refuses_symlinked_output_before_writing(tmp_path, monkeypatch):
     monkeypatch.setattr("pm.prepare_tools", lambda *args, **kwargs: pytest.fail("unsafe output reached acquisition"))
     output = tmp_path / "payload"

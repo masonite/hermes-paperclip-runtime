@@ -1163,7 +1163,7 @@ def _contains_unsafe_gateway_action(
                     return _budget_exhausted(budget, "remote reads", depth)
                 break
             script_text, unsafe = _sanitize_remote_script_text(
-                read_remote_script(str(script_path)), max_bytes=budget.bytes_remaining
+                read_remote_script(script_path.as_posix()), max_bytes=budget.bytes_remaining
             )
             if unsafe:
                 if candidate_executed:

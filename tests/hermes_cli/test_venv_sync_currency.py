@@ -123,11 +123,11 @@ def test_own_tree_sync_reuses_pm_without_writing_an_extra_stamp(admission_env, m
                             cwd=home, capture_output=True, text=True, check=True, timeout=30)
     assert Path(result.stdout.strip()).resolve() == environment.resolve()
     marker = environment / 'pyvenv.cfg'
-    marker_bytes = marker.read_bytes()
     marker.unlink()
-    failure = venv_sync.sync(core)
-    assert failure['state'] == 'failed'
-    assert 'dependency environment is missing' in failure['detail']
-    marker.write_bytes(marker_bytes)
+    assert venv_sync.sync(core) == {'state': 'synced', 'ok': True}
+    replacement = selected_venv(core)
+    assert replacement != environment
+    assert (replacement / 'pyvenv.cfg').is_file()
+    assert not marker.exists()
     assert venv_sync.sync(core) == {'state': 'current', 'ok': True}
     assert not (core / ".hermes-runtime" / "cache" / "venv-sync.json").exists()

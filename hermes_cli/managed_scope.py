@@ -74,10 +74,9 @@ def _cached_read(path: Path, cache: dict[str, tuple], parse):
     managed file can't brick startup.
     """
     try:
-        st = path.stat()
+        key = file_signature(path)
     except OSError:
         return None  # absent
-    key = file_signature(st)
     path_key = str(path)
     with _CACHE_LOCK:
         hit = cache.get(path_key)

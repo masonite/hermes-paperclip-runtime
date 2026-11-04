@@ -1307,7 +1307,7 @@ def _load_cfg_raw() -> dict:
     from hermes_cli.config_read_errors import FailedConfigRead
     try:
         p = _active_config_path()
-        sig = file_signature(p.stat()) if p.exists() else None
+        sig = file_signature(p) if p.exists() else None
         with _cfg_lock:
             if _cfg_cache is not None and _cfg_sig == sig and _cfg_path == p:
                 return copy.deepcopy(_cfg_cache)
@@ -1338,7 +1338,7 @@ def _save_cfg(cfg: dict):
     with _cfg_lock:
         _cfg_cache, _cfg_path = copy.deepcopy(cfg), path
         try:
-            _cfg_sig = file_signature(path.stat())
+            _cfg_sig = file_signature(path)
         except Exception:
             _cfg_sig = None
 

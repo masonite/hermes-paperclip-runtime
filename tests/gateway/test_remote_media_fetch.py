@@ -70,28 +70,28 @@ class _ScriptedEnv(BaseEnvironment):
     """Runs the fetch command through a real shell so the transport (marker fencing, in-sandbox
     size bound, base64 round-trip) is exercised end to end."""
 
-    def __init__(self):
-        pass
+    def __init__(self, bash):
+        self.bash = bash
 
     def cleanup(self):
         pass
 
     def execute(self, command, cwd="", **kwargs):
         import subprocess
-        proc = subprocess.run(["bash", "-c", command], capture_output=True, text=True)
+        proc = subprocess.run([self.bash, "-c", command], capture_output=True, text=True)
         return {"output": "echo login-noise\n" + proc.stdout + proc.stderr, "returncode": proc.returncode}
 
 
-def test_fetch_file_round_trips_bytes_and_enforces_the_in_sandbox_size_cap(tmp_path):
+def test_fetch_file_round_trips_bytes_and_enforces_the_in_sandbox_size_cap(tmp_path, real_bash):
     src = tmp_path / "artifact.bin"
     src.write_bytes(bytes(range(256)) * 40)
     dest = tmp_path / "copy.bin"
-    env = _ScriptedEnv()
+    env = _ScriptedEnv(real_bash)
 
-    env.fetch_file(str(src), dest, max_bytes=len(src.read_bytes()))
+    env.fetch_file(src.as_posix(), dest, max_bytes=len(src.read_bytes()))
     assert dest.read_bytes() == src.read_bytes()
 
     with pytest.raises(FileFetchError, match="exceeds"):
-        env.fetch_file(str(src), dest, max_bytes=100)
+        env.fetch_file(src.as_posix(), dest, max_bytes=100)
     with pytest.raises(FileFetchError, match="could not read"):
-        env.fetch_file(str(tmp_path), dest, max_bytes=100)  # a directory is not a regular file
+        env.fetch_file(tmp_path.as_posix(), dest, max_bytes=100)  # a directory is not a regular file

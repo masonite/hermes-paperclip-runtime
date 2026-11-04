@@ -524,7 +524,7 @@ def _load_global_auth_store() -> dict[str, Any]:
         return {}
     try:
         cache_key: Optional[tuple[str, tuple[int, int, int, int]]] = (
-            str(global_path.resolve(strict=False)), file_signature(global_path.stat()))
+            str(global_path.resolve(strict=False)), file_signature(global_path))
     except Exception:
         cache_key = None
     cached = _global_auth_store_cache

@@ -70,7 +70,7 @@ def _live_profile(root: Path, name: str) -> None:
 
 
 def _launch_command(tmp_path, monkeypatch, argv: list[str], *, active_profile: str | None = None) -> list[str]:
-    hermes_root = tmp_path / ".hermes"
+    hermes_root = tmp_path / ("hermes" if sys.platform == "win32" else ".hermes")
     hermes_root.mkdir()
     if active_profile and active_profile != "default":
         _live_profile(hermes_root, active_profile)
@@ -84,6 +84,7 @@ def _launch_command(tmp_path, monkeypatch, argv: list[str], *, active_profile: s
     exe = _packaged_exe(project)
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     monkeypatch.delenv("HERMES_HOME", raising=False)
     monkeypatch.setenv("XDG_DATA_HOME", str(tmp_path / "xdg"))
     monkeypatch.setenv("GNOME_KEYRING_CONTROL", "/run/user/1000/keyring")
@@ -111,6 +112,7 @@ def _launch_command(tmp_path, monkeypatch, argv: list[str], *, active_profile: s
         return subprocess.CompletedProcess(cmd, 0)
 
     monkeypatch.setattr(subprocess, "run", _run)
+    monkeypatch.setattr(subprocess, "Popen", _run)
     with pytest.raises(SystemExit) as exc:
         cli_main.cmd_gui(_ns())
     assert exc.value.code == 0

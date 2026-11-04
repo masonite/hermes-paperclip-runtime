@@ -506,6 +506,7 @@ class TestUpdate:
         scripts.mkdir()
         assert not _merges_per_root(scripts, ("skills", "research", "web-search", "scripts"))
 
+    @pytest.mark.require_symlinks
     def test_an_owned_category_refuses_a_symlinked_subcategory_before_writing(self, profile_env, tmp_path):
         staged, plan = self._owned_category(profile_env, "rb")
         (staged / "skills" / "research" / "papers" / "summarize").mkdir(parents=True)

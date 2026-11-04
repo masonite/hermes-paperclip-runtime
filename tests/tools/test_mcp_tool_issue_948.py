@@ -284,7 +284,7 @@ def test_bare_python3_steps_past_the_managed_runtime_to_the_user_hit(tmp_path, m
     finally:
         reset_hermes_home_override(token)
 
-    assert command == str(user_exe)
+    assert os.path.normcase(command) == os.path.normcase(str(user_exe))
     # The user's dir is already on the child PATH, so it keeps its place: main's
     # invariant (test_resolve_stdio_command_keeps_the_child_path_order) is that a
     # resolved command never reorders the child's PATH.
@@ -309,7 +309,7 @@ def test_bare_python3_keeps_the_managed_hit_when_the_user_has_none(tmp_path, mon
     finally:
         reset_hermes_home_override(token)
 
-    assert command == str(managed_exe)
+    assert os.path.normcase(command) == os.path.normcase(str(managed_exe))
 
 
 def test_first_user_which_hit_follows_the_child_env_pathext(tmp_path):
@@ -348,7 +348,7 @@ def test_bare_launcher_commands_keep_the_managed_first_resolution(tmp_path, monk
 
     command, _env = _resolve_stdio_command("uvx", {"PATH": os.pathsep.join([str(user_bin)])})
 
-    assert command == str(uv_dir / "uvx")
+    assert os.path.normcase(command) == os.path.normcase(str(uv_dir / ("uvx.cmd" if os.name == "nt" else "uvx")))
 
 
 def test_tail_server_stderr_scopes_to_the_named_server(tmp_path, monkeypatch):

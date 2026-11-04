@@ -25,6 +25,7 @@ import stat
 import threading
 import time
 
+from hermes_platform.file_metadata import stat_file
 from tools.file_state import _evict_oldest
 from tools.file_tools_paths import _authoritative_workspace_root, _resolve_path_for_task
 
@@ -248,7 +249,7 @@ def _update_read_timestamp(filepath: str, task_id: str) -> None:
 
 def _file_metadata(resolved: str) -> tuple | None:
     try:
-        st = os.stat(resolved)
+        st = stat_file(resolved)
         return st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns
     except OSError:
         return None
@@ -265,7 +266,7 @@ def _file_version(resolved: str) -> tuple | None:
             if not stat.S_ISREG(before.st_mode):
                 return None
             digest = hashlib.file_digest(stream, "sha256").digest()
-            after = os.stat(resolved)
+            after = stat_file(resolved)
         fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_ctime_ns")
         version = tuple(getattr(before, name) for name in fields)
         if version == tuple(getattr(after, name) for name in fields):

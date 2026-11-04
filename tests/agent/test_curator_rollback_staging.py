@@ -105,7 +105,7 @@ def test_retain_staging_never_raises(tmp_path, monkeypatch, mode):
 
     ok, message, restored = curator.rollback(target.name)  # must not raise
     assert not ok and restored is None
-    assert "could not restore alpha/.git" in message
+    assert f"could not restore {Path('alpha') / '.git'}" in message
     if mode == "rename_fails":
         assert "rename failed" in message and ".rollback-staging-" in message
     else:

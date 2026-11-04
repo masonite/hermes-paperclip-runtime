@@ -864,6 +864,7 @@ class TestNativeEnvironmentContracts:
             "PATH": "/usr/bin:/bin",
             "HOME": "/home/user",
             "PYTHONPATH": os.pathsep.join([venv_sp, "/home/user/my-lib"]),
+            "USERPROFILE": "/home/user",
         }
         with patch.dict(os.environ, seed, clear=True):
             if builder == "_make_run_env":
@@ -1286,6 +1287,7 @@ class TestPythonhomeSanitized:
             "PATH": "/usr/bin:/bin",
             "HOME": "/home/user",
             "PYTHONHOME": "/opt/hermes-venv",
+            "USERPROFILE": "/home/user",
         }
         with patch.dict(os.environ, seed, clear=True):
             if builder == "_make_run_env":
@@ -1531,7 +1533,7 @@ class TestSanePathIncludesHomebrew:
         from tools.environments import local as local_mod
         from tools.environments.local import _SANE_PATH, _make_run_env
         monkeypatch.setattr(local_mod, "_git_bash_bin_dirs", list)
-        minimal_env = {"PATH": "/some/custom/bin"}
+        minimal_env = {"PATH": "/some/custom/bin", "HOME": "/home/user", "USERPROFILE": "/home/user"}
         with patch.dict(os.environ, minimal_env, clear=True):
             result = _make_run_env({})
         path_entries = result["PATH"].split(os.pathsep)

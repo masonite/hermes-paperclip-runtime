@@ -32,9 +32,16 @@ def test_explicit_profile_target_never_falls_back(tmp_path, monkeypatch):
         with pytest.raises(FileNotFoundError):
             server._methods["config.set"](2, {"profile": name, "key": "busy", "value": "steer"})
         assert (home / "config.yaml").read_bytes() == before
-    # A real resolution I/O failure must propagate, too (no predicate patch).
+
+
+@pytest.mark.require_symlinks
+def test_explicit_profile_target_propagates_symlink_loop(tmp_path, monkeypatch):
+    from tui_gateway import server
+
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HERMES_HOME", str(home))
     profiles = home / "profiles"
-    profiles.rename(home / "saved-profiles")
     profiles.symlink_to("profiles")
     with pytest.raises((OSError, RuntimeError)):
         server._profile_home("worker")

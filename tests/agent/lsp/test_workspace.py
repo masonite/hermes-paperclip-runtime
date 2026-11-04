@@ -67,6 +67,7 @@ def test_resolve_workspace_for_file_uses_cwd_first(tmp_path: Path, monkeypatch):
     assert gated is True
 
 
+@pytest.mark.platforms("posix")
 def test_resolve_workspace_for_file_survives_deleted_cwd(tmp_path: Path, monkeypatch):
     """A removed process cwd must read as "no anchor", not raise — the LSP
     workspace resolver runs inside a write tool and must never break a write

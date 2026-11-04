@@ -76,8 +76,8 @@ def run_code(code, mode="project", enabled_tools=("read_file",), reset=True):
 
 def observe_terminal(env, names):
     code = "import json,os; print(json.dumps({k:os.environ.get(k) for k in " + repr(list(names)) + "}))"
-    command = shlex.join([Path(sys.executable).as_posix(), "-c", code])
-    result = env.execute(command)
+    command = shlex.join([Path(sys.executable).as_posix(), "-"])
+    result = env.execute(command, stdin_data=code)
     assert result["returncode"] == 0, result
     return json.loads(result["output"])
 

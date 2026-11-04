@@ -8,6 +8,18 @@ from types import SimpleNamespace
 from typing import Any, Optional
 
 
+class _FakeRequestContent:
+    def __init__(self, body: bytes):
+        self.body = body
+        self.read_sizes: list[int] = []
+
+    async def readexactly(self, size: int) -> bytes:
+        self.read_sizes.append(size)
+        if len(self.body) < size:
+            raise asyncio.IncompleteReadError(self.body, size)
+        return self.body[:size]
+
+
 def make_sender(sender_type: str = "user", open_id: str = "ou_human",
                 user_id: Optional[str] = None, union_id: Optional[str] = None) -> Any:
     return SimpleNamespace(

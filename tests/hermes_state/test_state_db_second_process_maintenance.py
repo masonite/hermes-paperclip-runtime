@@ -58,6 +58,7 @@ def test_repair_refuses_delete_mode_db_held_open_by_another_process(delete_mode_
     assert "stop the gateway" in (report["error"] or "").lower()
 
 
+@pytest.mark.require_symlinks
 def test_holder_scan_sees_through_a_symlinked_home(tmp_path):
     """psutil/libproc report the resolved pathname; a holder opened via the real path must be found
     when the scan is asked about the alias, or maintenance proceeds under a live writer. The Linux

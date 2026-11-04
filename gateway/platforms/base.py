@@ -1002,6 +1002,7 @@ def _tenv(name: str, default: str = "") -> str:
 def _parse_docker_volume_mounts() -> list[tuple[Path, Path]]:
     """Parse ``TERMINAL_DOCKER_VOLUMES`` (JSON list of ``host:container[:mode]``) into
     ``(host_path, container_path)``; named volumes / non-absolute hosts can't resolve here."""
+    from tools.environments.docker import _split_volume_spec
     raw = _tenv("TERMINAL_DOCKER_VOLUMES", "").strip()
     try:
         import json as _json
@@ -1010,18 +1011,16 @@ def _parse_docker_volume_mounts() -> list[tuple[Path, Path]]:
         return []
     mounts: list[tuple[Path, Path]] = []
     for entry in parsed if isinstance(parsed, list) else ():
-        spec = entry.strip() if isinstance(entry, str) else ""
-        # Prefer the first ':/' so absolute container paths are unambiguous.
-        sep = spec.find(":/")
-        if sep <= 0:
+        parts = _split_volume_spec(entry)
+        if parts is None:
             continue
-        container_raw = spec[sep + 1:].split(":", 1)[0]  # starts with /
+        host_raw, container_raw = parts
         # Skip named volumes (no absolute/drive host path).
-        host_expanded = os.path.expanduser(spec[:sep])
+        host_expanded = os.path.expanduser(host_raw)
         if not (host_expanded.startswith("/") or (len(host_expanded) > 1 and host_expanded[1] == ":")):
             continue
         host_path, container_path = _resolve_path(Path(host_expanded)), Path(container_raw)
-        if host_path is not None and container_path.is_absolute():
+        if host_path is not None and container_raw.startswith("/"):
             mounts.append((host_path, container_path))
     return mounts
 
@@ -1127,7 +1126,7 @@ def _warn_unresolved_docker_media(candidate: Path, session_key: str, reason: str
 def _translate_docker_container_media_path(candidate: Path, session_key: str = "") -> Optional[Path]:
     """Container-absolute path -> host path via longest-prefix match over ``docker_volumes``, the
     auto-mounted cache dirs (``/root/.hermes/...``), persistent ``/workspace`` and ``/root``."""
-    if not candidate.is_absolute():
+    if not candidate.as_posix().startswith("/"):
         return None
     # In-process gateways (Desktop, `hermes serve`) may not have bridged terminal.* config into
     # TERMINAL_* env yet; the bridge is idempotent.
@@ -1179,11 +1178,11 @@ def validate_media_delivery_path(path: str, session_key: str = "") -> Optional[s
     except (OSError, RuntimeError, ValueError):
         # expanduser raises ValueError("embedded null byte") for a ~\x00 path.
         return None
-    if not expanded.is_absolute():
-        return None
     # Docker agents emit MEDIA:/workspace/... — map container paths to host paths first.
     resolved = _translate_docker_container_media_path(expanded, session_key=session_key)
     if resolved is None:
+        if not expanded.is_absolute():
+            return None
         resolved = _resolve_path(expanded, strict=True)
     if resolved is None or not resolved.is_file():
         return None

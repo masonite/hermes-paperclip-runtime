@@ -381,7 +381,9 @@ def test_prune_releases_git_worktree_registration_of_idle_entry(tmp_path):
     ancient = time.time() - 30 * 3600
     for dirpath, dirnames, filenames in os.walk(tree.parent):
         for name in dirnames + filenames:
-            os.utime(os.path.join(dirpath, name), (ancient, ancient), follow_symlinks=False)
+            path = os.path.join(dirpath, name)
+            if not os.path.islink(path):
+                os.utime(path, (ancient, ancient))
     os.utime(tree.parent, (ancient, ancient))
     assert prune_scratch_dir(scratch) == 1
     listing = subprocess.run(["git", "worktree", "list", "--porcelain"], cwd=repo, capture_output=True,

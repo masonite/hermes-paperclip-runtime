@@ -402,6 +402,13 @@ def _discover_files(roots: list[Path]) -> list[Path]:
     return sorted(out)
 
 
+def _close_job_after_exit(proc, job) -> None:
+    try:
+        proc.wait()
+    finally:
+        job.close()
+
+
 def _kill_tree(proc: subprocess.Popen, pgid: int | None = None) -> None:
     """Kill the pytest subprocess and every descendant it spawned.
 
@@ -419,20 +426,23 @@ def _kill_tree(proc: subprocess.Popen, pgid: int | None = None) -> None:
     the group are still alive. SIGKILL'ing the captured pgid takes out
     everything in that group atomically.
 
-    Windows: ``taskkill /F /T /PID`` walks the recorded ppid chain and
-    terminates the whole tree, even when the root has already exited.
+    Windows: close the per-file Job Object, which retains descendants after the root exits.
 
     Why not psutil: psutil walks the parent-child tree, but in the
     happy path the root has already been reaped so ``psutil.Process(pid)``
     can't find it; grandchildren reparented to PID 1 are also
     unreachable by tree walk at that point. The platform-native
-    primitives (process groups / taskkill) handle both cases correctly
+    primitives (process groups / Job Objects) handle both cases correctly
     without an extra abstraction layer.
     """
     if proc.pid is None:
         return
 
     if sys.platform == "win32":
+        job = getattr(proc, "_hermes_test_job", None)
+        if job is not None:
+            job.close()
+            return
         try:
             
             subprocess.run(
@@ -640,7 +650,13 @@ def _run_one_file_once(
     # One root for each subprocess removes the shared directory that the race
     # needs. The parent deletes the root after the attempt.
     env = os.environ.copy()
+    # Host line-ending, signing and hook settings must not change fixture repositories.
+    env.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
     temproot = tempfile.mkdtemp(prefix="r-", dir=_runner_scratch_root())
+    if os.name == "nt":
+        git_config = Path(temproot) / "gitconfig"
+        git_config.write_text("[core]\n    longpaths = true\n", encoding="utf-8")
+        env["GIT_CONFIG_GLOBAL"] = str(git_config)
     env["PYTEST_DEBUG_TEMPROOT"] = temproot
     # Every tempfile.* call inside the test process lands in the same per-run root, so the
     # parent's cleanup of ``temproot`` removes them too instead of leaving them in /tmp.
@@ -648,19 +664,20 @@ def _run_one_file_once(
 
     subproc_start = time.monotonic()
     # launch the pytest process
-    proc = subprocess.Popen(
+    from hermes_cli.local_runtime.processes import spawn_server
+    proc, job = spawn_server(
         cmd,
+        allow_breakaway=True,
         cwd=repo_root,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True, encoding="utf-8", errors="replace",
         env=env,
-        # POSIX: place the child at the head of its own process group so
-        # _kill_tree can SIGKILL the group atomically.
-        # Windows: this maps to CREATE_NEW_PROCESS_GROUP in CPython 3.12+;
-        # _kill_tree handles the Windows path via taskkill /F /T.
+        # POSIX owns a process group; Windows owns the child's Job Object.
         start_new_session=True,
     )
+    if job is not None:
+        proc._hermes_test_job = job
 
     # Capture the pgid NOW, before the leader can exit and be reaped. Once
     # the leader is reaped, os.getpgid(proc.pid) raises ProcessLookupError
@@ -674,6 +691,8 @@ def _run_one_file_once(
             pgid = None
 
     try:
+        if job is not None:
+            threading.Thread(target=_close_job_after_exit, args=(proc, job), daemon=True).start()
         output, _ = proc.communicate(timeout=file_timeout)
         rc = proc.returncode
     except subprocess.TimeoutExpired:

@@ -213,7 +213,7 @@ def _is_unusable_container_cwd(cwd: str, *, mounted_host: str | None = None) -> 
         return False
     if _is_mounted_host_cwd(cwd, mounted_host):
         return True
-    return _is_host_cwd(cwd) or not os.path.isabs(cwd)
+    return _is_host_cwd(cwd) or not posixpath.isabs(cwd)
 
 
 def _tenv(name: str, default: str = "") -> str:

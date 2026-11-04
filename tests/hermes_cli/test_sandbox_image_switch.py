@@ -13,6 +13,7 @@ startup offer and the Screen pane call:
 
 import os
 import stat
+import sys
 from pathlib import Path
 import pytest
 import hermes_yaml as yaml
@@ -106,9 +107,13 @@ def test_terminal_scope_pins_an_image_written_in_the_profile_env_even_when_it_sp
 def _fake_docker(tmp_path, monkeypatch, ps_output: str) -> Path:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
-    exe = bin_dir / "docker"
-    exe.write_text("#!/bin/sh\n"
-                   "case \"$1\" in ps) printf '%s' \"$PS_OUTPUT\";; *) exit 0;; esac\n", encoding="utf-8")
+    exe = bin_dir / ("docker.cmd" if os.name == "nt" else "docker")
+    if os.name == "nt":
+        script = bin_dir / "fake_docker.py"
+        script.write_text("import os,sys\nif sys.argv[1] == 'ps': print(os.environ['PS_OUTPUT'], end='')\n", encoding="utf-8")
+        exe.write_text(f'@"{sys._base_executable}" "{script}" %*\n', encoding="utf-8")
+    else:
+        exe.write_text("#!/bin/sh\ncase \"$1\" in ps) printf '%s' \"$PS_OUTPUT\";; *) exit 0;; esac\n", encoding="utf-8")
     exe.chmod(exe.stat().st_mode | stat.S_IXUSR)
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '')}")
     monkeypatch.setenv("PS_OUTPUT", ps_output)

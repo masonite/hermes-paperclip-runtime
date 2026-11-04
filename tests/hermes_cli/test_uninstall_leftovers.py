@@ -45,6 +45,7 @@ def _fake_launchctl(monkeypatch, calls):
     monkeypatch.setattr(uninstall.subprocess, "run", fake_run)
 
 
+@pytest.mark.platforms("macos")
 def test_remove_launchd_gateway_sweeps_both_label_patterns(launch_agents, monkeypatch):
     current = launch_agents / "ai.hermes.gateway.plist"
     profiled = launch_agents / "ai.hermes.gateway-work.plist"
@@ -65,6 +66,7 @@ def test_remove_launchd_gateway_sweeps_both_label_patterns(launch_agents, monkey
     assert all(c[1] == "unload" for c in calls if c[1] == "unload")
 
 
+@pytest.mark.platforms("macos")
 def test_remove_launchd_gateway_returns_false_when_no_plists(launch_agents, monkeypatch):
     calls: list[list[str]] = []
     _fake_launchctl(monkeypatch, calls)

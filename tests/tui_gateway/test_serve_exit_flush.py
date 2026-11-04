@@ -110,6 +110,7 @@ def test_sigterm_flushes_populated_session_into_state_db(
     assert any("survive the kill" in str(r.get("content", "")) for r in rows)
     db.close()
 
+@pytest.mark.platforms("posix")
 def test_ignored_sigint_leaves_terminal_commands_runnable():
     """SIGINT inherited as SIG_IGN (a server started as ``cmd &`` from a non-interactive shell) ends
     nothing, so it must not raise the one-way exit fence: the process lives on and every later
@@ -179,17 +180,20 @@ def test_shutdown_mid_tool_kills_the_command_and_keeps_its_result(monkeypatch):
     end the command's process group (it would outlive the gateway, reparented to init) and the
     turn's tool result must be in the transcript before per-session teardown persists it."""
     import threading
+    import shlex
+    import sys
 
     import psutil
 
-    from tools.environments.local import LocalEnvironment
+    from tools.environments.local import LocalEnvironment, _bash_safe_path
     from tools.interrupt import set_interrupt
 
     env = LocalEnvironment(cwd=os.getcwd())
     messages = [{"role": "assistant", "tool_calls": [{"id": "call-1"}]}]
+    command = shlex.quote(_bash_safe_path(sys._base_executable)) + " -c " + shlex.quote("import time; time.sleep(3518)")
 
     def turn():
-        out = env.execute("sleep 3518", timeout=600)
+        out = env.execute(command, timeout=600)
         time.sleep(0.2)  # the agent's post-tool bookkeeping before the result lands in history
         messages.append({"role": "tool", "tool_call_id": "call-1", "content": out["output"]})
 
@@ -202,13 +206,13 @@ def test_shutdown_mid_tool_kills_the_command_and_keeps_its_result(monkeypatch):
             set_interrupt(True, thread_id=run_thread.ident)
 
     run_thread.start()
-    deadline = time.monotonic() + 20.0
+    deadline = time.monotonic() + 60.0
     sleeper = None
     while sleeper is None and time.monotonic() < deadline:
         sleeper = next((p for p in psutil.Process().children(recursive=True)
-                        if p.name() == "sleep" and "3518" in " ".join(p.cmdline())), None)
+                        if p.name().lower().startswith("python") and "3518" in " ".join(p.cmdline())), None)
         time.sleep(0.05)
-    assert sleeper is not None, "test setup: foreground sleep never started"
+    assert sleeper is not None, f"test setup: foreground sleep never started: {messages!r}"
 
     at_teardown: list = []
     monkeypatch.setattr(server, "_release_gateway_wake_owner", lambda: None, raising=False)

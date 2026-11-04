@@ -11,6 +11,7 @@ def test_message_pages_identify_the_serving_profile(tmp_path, monkeypatch, servi
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     default_home = tmp_path / ".hermes"
+    monkeypatch.setattr("hermes_constants._get_platform_default_hermes_home", lambda: default_home)
     work_home = default_home / "profiles" / "work" if serving_profile else default_home / "custom-home"
     default_home.mkdir(parents=True)
     work_home.mkdir(parents=True)

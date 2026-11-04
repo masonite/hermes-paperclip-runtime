@@ -20,6 +20,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.platforms("posix")
+
 POSIX_SH = Path(__file__).resolve().parent.parent.parent.parent / "scripts" / "desktop-update" / "posix.sh"
 
 # NOT linux_only: unlike the symlink-matrix file, these cases only exercise

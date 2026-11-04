@@ -32,11 +32,13 @@ def _desktop_product_present(tmp_path: Path) -> int:
 
 
 @pytest.mark.parametrize("unpacked", UNPACKED_DIRS)
+@pytest.mark.platforms("posix")
 def test_install_sh_detects_desktop_build(tmp_path, unpacked):
     (tmp_path / "install" / "apps" / "desktop" / "release" / unpacked).mkdir(parents=True)
     assert _desktop_product_present(tmp_path) == 0
 
 
+@pytest.mark.platforms("posix")
 def test_install_sh_without_desktop_build(tmp_path):
     (tmp_path / "install" / "apps" / "desktop" / "release" / "builder-debug").mkdir(parents=True)
     assert _desktop_product_present(tmp_path) != 0

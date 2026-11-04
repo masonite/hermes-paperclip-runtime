@@ -142,8 +142,8 @@ def _is_volatile_mount_spec(spec: str) -> bool:
         return False  # the flag element itself, or a non-bind arg (tmpfs modes etc.)
     parsed = _split_volume_spec(spec)
     source = parsed[0] if parsed is not None else spec.split(":", 1)[0]
-    if _is_windows_drive_path(source):
-        return False  # drive-letter hosts can never be the POSIX process tempdir
+    if _is_windows_drive_path(source) and os.name != "nt":
+        return False  # a drive-letter host cannot be a POSIX process tempdir
     try:
         temp_root = os.path.realpath(tempfile.gettempdir())
         source_abs = os.path.realpath(os.path.abspath(os.path.expanduser(source)))
@@ -165,7 +165,7 @@ def _reuse_environment_fingerprint(*, image: str, mount_args: list[str], hermes_
     """
     normalized_home = os.path.normcase(os.path.abspath(os.path.expanduser(hermes_home)))
     canonical_mounts = [
-        (f"<volatile-tempdir-mount>:{spec.split(':', 1)[1]}"
+        (f"<volatile-tempdir-mount>:{spec.split(':', 2 if _is_windows_drive_path(spec) else 1)[-1]}"
          if _is_volatile_mount_spec(spec) else spec)
         for spec in mount_args]
     payload = json.dumps(

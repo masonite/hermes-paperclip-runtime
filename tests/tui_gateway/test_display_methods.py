@@ -30,6 +30,7 @@ def test_install_worker_keeps_the_requested_profile_scope(tmp_path, monkeypatch)
         return 0
 
     monkeypatch.setattr(install, "install_packages", fake_install)
+    monkeypatch.setattr(install, "claim", lambda: None)
     monkeypatch.setattr(server, "_broadcast_global_event", lambda *a, **k: None)
     resp = server.handle_request({"jsonrpc": "2.0", "id": 1, "method": "display.install", "params": {"profile": "named"}})
     assert resp["result"]["started"], resp
@@ -201,6 +202,7 @@ def test_install_sudo_card_ignores_a_client_supplied_session_id(monkeypatch):
     from tui_gateway import server
     from tools.bot_desktop import install, runtime
 
+    monkeypatch.setattr(install, "claim", lambda: None)
     monkeypatch.setattr(runtime, "is_supported_host", lambda: True)
     monkeypatch.setattr(runtime, "install_command", lambda: "sudo apt-get install -y x")
     monkeypatch.setattr(server, "_broadcast_global_event", lambda *a, **k: None)

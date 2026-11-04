@@ -2787,11 +2787,9 @@ class TestInboundMediaAuthorizationGate:
 
     @pytest.mark.asyncio
     async def test_live_media_redacts_long_path_before_bounding(self, tmp_path):
-        # Invariant: the host path is redacted BEFORE the 900-char bound is applied,
-        # so a path long enough to straddle the cut never leaks in fragments. The
-        # path must therefore exceed the bound, but stay under PATH_MAX (1024 on
-        # macOS; 4096 on Linux) so the directory can actually be created.
-        parent = tmp_path
+        # Exercise redaction before the 900-char bound without requiring Windows long-path settings.
+        from pm.filesystem import long_root
+        parent = long_root(tmp_path)
         private_parts = []
         while len(str(parent)) < _MAX_CLI_MESSAGE_CHARS:
             part = f"private-{len(private_parts)}-" + ("x" * 80)

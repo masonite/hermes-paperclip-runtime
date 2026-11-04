@@ -31,7 +31,7 @@ def _pinned_namespace(monkeypatch):
 
 
 def _dead_pid() -> int:
-    proc = subprocess.Popen([sys.executable, "-c", "pass"])
+    proc = subprocess.Popen([sys._base_executable, "-c", "pass"])
     proc.wait(timeout=30)
     assert not psutil.pid_exists(proc.pid), "reaped pid unexpectedly reused"
     return proc.pid
@@ -59,6 +59,7 @@ def test_turn_lease_of_sibling_namespace_is_not_stolen(tmp_path) -> None:
     assert db.try_acquire_session_turn_lease("legacy", contender, ttl_seconds=300) is False
 
 
+@pytest.mark.platforms("linux")
 def test_flock_holder_record_qualifies_pid_namespaces(monkeypatch, tmp_path) -> None:
     dead = _dead_pid()
     provably_dead = hermes_state_common._lock_holder_provably_dead

@@ -12,6 +12,8 @@ import sys
 import time
 from pathlib import Path
 
+from hermes_constants import hermes_home_key
+
 REPO = Path(__file__).resolve().parents[2]
 
 
@@ -96,7 +98,7 @@ def test_screen_started_or_stopped_by_another_process_is_broadcast_as_status(tmp
     (home / "bot-desktop" / "env").write_text("DISPLAY=:77\n", encoding="utf-8")
     server._poll_runtime_files()
     statuses = [p for e, p in events if e == "display.status"]
-    assert statuses and statuses[-1]["profile_key"] == str(home)
+    assert statuses and statuses[-1]["profile_key"] == hermes_home_key(home)
 
     (home / "bot-desktop" / "env").unlink()  # stop() from the other process
     server._poll_runtime_files()

@@ -58,6 +58,7 @@ def test_control_files_and_lookalikes_outside_home_stay_writable(hermes_layout, 
     assert fs.is_write_denied(str(_touch(tmp_path / "myproject", "vault/vault.key"))) is False
 
 
+@pytest.mark.platforms("posix")
 class TestProfileHomeProcessHome:
     """With the process HOME pinned to ``{HERMES_HOME}/home`` (TERMINAL_HOME_MODE=profile,
     containers, spawned workers) the write guards must still cover every home a write can

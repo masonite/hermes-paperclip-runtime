@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -39,8 +38,7 @@ def profile_serve_signature(home: Path) -> tuple:
     sig = []
     for name in _PROFILE_SIGNATURE_FILES:
         try:
-            st = os.stat(Path(home) / name)
-            sig.append(file_signature(st))
+            sig.append(file_signature(Path(home) / name))
         except OSError:
             sig.append(None)
     return tuple(sig)

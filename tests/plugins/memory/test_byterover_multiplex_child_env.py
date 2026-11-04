@@ -6,6 +6,7 @@ the default's ByteRover cloud account while its local context tree was already p
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -64,7 +65,7 @@ def test_secondary_profile_child_uses_its_own_key_not_defaults(two_profiles):
     assert env["BRV_API_KEY"] == "PROFILE-B-KEY"
     assert env["HERMES_HOME"] == str(prof_b)
     assert "HERMES_MODEL" not in env  # launch profile's .env residue is stripped too
-    assert env["PATH"].startswith("/opt/brv/bin")
+    assert Path(env["PATH"].split(os.pathsep)[0]) == Path("/opt/brv/bin")
 
 
 def test_secondary_without_key_gets_no_key_never_defaults(two_profiles):

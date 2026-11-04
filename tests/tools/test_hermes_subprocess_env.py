@@ -35,6 +35,7 @@ _PROVIDER_SAMPLE = {
 _SAFE_SAMPLE = {
     "PATH": "/usr/bin:/bin",
     "HOME": "/home/user",
+    "USERPROFILE": "/home/user",
     "USER": "testuser",
     "MY_APP_VAR": "keep-me",
 }

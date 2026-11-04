@@ -5,8 +5,8 @@ subprocess — no mocks. They pin the round-trip byte contract (utf-8 +
 surrogateescape is the inverse of the decode that produced the content) and
 the always-close / error-capture guarantees of the writer thread.
 """
-import shlex
 import subprocess
+import sys
 import time
 from unittest.mock import MagicMock
 
@@ -20,7 +20,7 @@ from tools.file_operations import ShellFileOperations
 def _cat_to_file_proc(out_path):
     """A real child that copies its stdin to a file, byte for byte."""
     return subprocess.Popen(
-        ["bash", "-c", f"cat > {shlex.quote(str(out_path))}"],
+        [sys._base_executable, "-c", "import pathlib,sys; pathlib.Path(sys.argv[1]).write_bytes(sys.stdin.buffer.read())", str(out_path)],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -190,12 +190,7 @@ class TestPipeStdinRemainingBranches:
 
     def test_bytes_input_passes_through_untouched(self, tmp_path):
         out = tmp_path / "out.bin"
-        proc = subprocess.Popen(
-            ["bash", "-c", f"cat > {shlex.quote(str(out))}"],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, text=True,
-            encoding="utf-8", errors="replace",
-        )
+        proc = _cat_to_file_proc(out)
         try:
             _pipe_stdin(proc, b"\x00\x01\xfe")
             _wait_or_kill(proc)
@@ -208,7 +203,7 @@ class TestPipeStdinRemainingBranches:
 
     def test_stdin_none_records_runtime_error(self, tmp_path):
         proc = subprocess.Popen(
-            ["bash", "-c", "exit 0"],
+            [sys._base_executable, "-c", "pass"],
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT, text=True,
             encoding="utf-8", errors="replace",

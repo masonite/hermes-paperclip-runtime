@@ -115,6 +115,7 @@ class TestNoninteractiveGitEnv:
         )
         monkeypatch.setenv("GIT_CONFIG_SYSTEM", str(system_config))
         monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+        monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "0")
 
         # Ambient GIT_CONFIG_KEY_n=safe.directory must not be laundered through alongside the
         # user's own entries -- only the config files are a trust source.
@@ -147,7 +148,7 @@ class TestNoninteractiveGitEnv:
         assert injected == expected
 
     @pytest.mark.real_safe_directory
-    def test_safe_directory_reset_still_revokes_wildcard_for_real_git(self, tmp_path):
+    def test_safe_directory_reset_still_revokes_wildcard_for_real_git(self, tmp_path, monkeypatch):
         """End-to-end: a revoked wildcard stays revoked, and the named repo stays usable.
 
         Proves the injected sequence produces the same *trust decision* real git makes, not merely
@@ -171,12 +172,13 @@ class TestNoninteractiveGitEnv:
 
         trusted = _repo("trusted")
         unrelated = _repo("unrelated")
+        monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "0")
 
         system_config = tmp_path / "system-gitconfig"
         system_config.write_text("[safe]\n\tdirectory = *\n", encoding="utf-8")
         global_config = tmp_path / "gitconfig"
         global_config.write_text(
-            f"[safe]\n\tdirectory = \n\tdirectory = {trusted}\n", encoding="utf-8"
+            f"[safe]\n\tdirectory = \n\tdirectory = {trusted.as_posix()}\n", encoding="utf-8"
         )
 
         env = noninteractive_git_env(

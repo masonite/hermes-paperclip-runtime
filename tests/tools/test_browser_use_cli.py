@@ -25,6 +25,7 @@ import tools.browser_use_cli as bu_cli
 from tools import browser_tool_install as bt_install
 from tools import browser_tool_cloud as bt_cloud
 from tools import browser_tool_session as bt_session
+from tools.environments.local import _find_bash
 
 
 @pytest.fixture(autouse=True)
@@ -66,11 +67,11 @@ def _fake_supervisor_registry(monkeypatch):
 
 
 def _fake_cli(tmp_path, body):
-    """Write an executable fake browser-use CLI and return its path."""
+    """Write a fake browser-use CLI and return its explicit Bash argv."""
     script = tmp_path / "browser-use"
-    script.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+    script.write_text("#!/bin/sh\n" + body, encoding="utf-8", newline="\n")
     script.chmod(script.stat().st_mode | stat.S_IXUSR)
-    return str(script)
+    return [_find_bash() or "bash", script.as_posix()]
 
 
 class TestModeDetection:
@@ -242,7 +243,7 @@ class TestVaultSupervisorAttach:
         default (Browser Use) backend had no supervisor at all and every fill failed with supervisor_required."""
         monkeypatch.setattr("hermes_cli.config.read_raw_config", lambda: {"browser": {"backend": "browser-use"}})
         cli = _fake_cli(tmp_path, 'cat > /dev/null\necho ok\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         monkeypatch.setattr("tools.browser_tool_cdp._resolve_cdp_override", lambda url: url)
 
         result = json.loads(bu_cli.browser_exec("print(1)", task_id="t-vault"))
@@ -266,7 +267,7 @@ cat > /dev/null
 [ -f "$latch" ] || echo "$BU_CDP_URL" > "$latch"
 cat "$latch"
 ''')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         monkeypatch.setattr("tools.browser_tool_cdp._resolve_cdp_override", lambda url: url)
         drive = lambda **kw: json.loads(bu_cli.browser_exec("print(1)", task_id="t-swap", **kw))["output"].strip()
 
@@ -285,7 +286,7 @@ class TestVaultEgressRedaction:
 
         secret = "vault-filled-password-112693"
         cli = _fake_cli(tmp_path, f'cat > /dev/null\necho "stdout={secret}"\necho "stderr={secret}" >&2\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         redact.register_vault_redaction_value(secret)
         try:
             result = json.loads(bu_cli.browser_exec("print(1)"))
@@ -382,7 +383,7 @@ class TestLegacyCloudMigration:
         monkeypatch.setattr("hermes_cli.config.read_raw_config", lambda: self._LEGACY)
         monkeypatch.setenv("BROWSER_USE_API_KEY", "bu-key")
         cli = _fake_cli(tmp_path, 'cat > /dev/null\necho "autospawn:$BU_AUTOSPAWN"\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         result = json.loads(bu_cli.browser_exec("print(1)"))
         assert "autospawn:1" in result["output"]
 
@@ -392,7 +393,7 @@ class TestLegacyCloudMigration:
             lambda: {"browser": {"backend": "browser-use"}},
         )
         cli = _fake_cli(tmp_path, 'cat > /dev/null\necho "autospawn:[$BU_AUTOSPAWN]"\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         result = json.loads(bu_cli.browser_exec("print(1)"))
         assert "autospawn:[]" in result["output"]
 
@@ -505,7 +506,7 @@ class TestBackendCdpResolution:
         monkeypatch.setattr(bt_cloud, "_get_cloud_provider", lambda: object())
         monkeypatch.setattr(bt_session, "_get_session_info", fake_session_info)
         cli = _fake_cli(tmp_path, 'cat > /dev/null\necho "bu:$BU_NAME ws:$BU_CDP_WS"\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         result = json.loads(bu_cli.browser_exec("print(1)", session="r7k2"))
         assert result["success"] is True
         assert seen == ["bu-named-r7k2"]
@@ -604,7 +605,7 @@ class TestOwnTabPreamble:
             monkeypatch.setattr(bt_cloud, "_get_cloud_provider", lambda: None)
         # fake CLI echoes stdin back so we can inspect what code was sent
         cli = _fake_cli(tmp_path, "cat\n")
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         return json.loads(bu_cli.browser_exec("print('payload')", session=session))
 
     def test_named_shared_browser_gets_preamble(self, tmp_path, monkeypatch):
@@ -640,7 +641,7 @@ class TestOwnTabPreamble:
             lambda key: {"cdp_url": "wss://browser.example/cdp/" + key},
         )
         cli = _fake_cli(tmp_path, 'cat > /dev/null\necho "sentinel:${_HERMES_BU_PRIVATE_BROWSER:-unset}"\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         result = json.loads(bu_cli.browser_exec("print(1)", session="r7k2"))
         assert "sentinel:unset" in result["output"]
 
@@ -823,7 +824,7 @@ class TestNativeScreenshots:
     def test_vision_model_gets_multimodal_envelope(self, tmp_path, monkeypatch):
         shot = self._shot(tmp_path)
         cli = _fake_cli(tmp_path, f'cat > /dev/null\necho "{shot}"\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         monkeypatch.setattr(
             "tools.vision_tools._should_use_native_vision_fast_path", lambda: True
         )
@@ -836,12 +837,12 @@ class TestNativeScreenshots:
         kinds = [part["type"] for part in result["content"]]
         assert kinds == ["text", "image_url"]
         assert result["meta"]["screenshot_path"] == shot
-        assert shot in result["text_summary"]
+        assert json.loads(result["text_summary"])["screenshot_path"] == shot
 
     def test_text_only_model_gets_plain_result_with_path(self, tmp_path, monkeypatch):
         shot = self._shot(tmp_path)
         cli = _fake_cli(tmp_path, f'cat > /dev/null\necho "{shot}"\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         monkeypatch.setattr(
             "tools.vision_tools._should_use_native_vision_fast_path", lambda: False
         )
@@ -850,7 +851,7 @@ class TestNativeScreenshots:
 
     def test_no_screenshot_keeps_string_result(self, tmp_path, monkeypatch):
         cli = _fake_cli(tmp_path, 'cat > /dev/null\necho "no images here"\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         result = json.loads(bu_cli.browser_exec("print(1)"))
         assert "screenshot_path" not in result
 
@@ -943,7 +944,7 @@ class TestBrowserExec:
 
     def test_code_piped_on_stdin(self, tmp_path, monkeypatch):
         cli = _fake_cli(tmp_path, 'code=$(cat)\necho "got:$code"\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         result = json.loads(bu_cli.browser_exec('print("hi")'))
         assert result["success"] is True
         assert result["exit_code"] == 0
@@ -952,21 +953,21 @@ class TestBrowserExec:
 
     def test_session_sets_bu_name(self, tmp_path, monkeypatch):
         cli = _fake_cli(tmp_path, 'cat > /dev/null\necho "bu:$BU_NAME"\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         result = json.loads(bu_cli.browser_exec("print(1)", session="r7k2"))
         assert "bu:r7k2" in result["output"]
         assert result["session"] == "r7k2"
 
     def test_invalid_session_name_rejected(self, monkeypatch, tmp_path):
         cli = _fake_cli(tmp_path, "cat > /dev/null\n")
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         result = json.loads(bu_cli.browser_exec("print(1)", session="bad name!"))
         assert "error" in result
         assert "session" in result["error"].lower()
 
     def test_nonzero_exit_reports_failure_and_stderr(self, tmp_path, monkeypatch):
         cli = _fake_cli(tmp_path, 'cat > /dev/null\necho "boom" >&2\nexit 3\n')
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         result = json.loads(bu_cli.browser_exec("print(1)"))
         assert result["success"] is False
         assert result["exit_code"] == 3
@@ -1102,7 +1103,7 @@ class TestLightpandaPreamble:
             bt_session, "_get_session_info", lambda key: {"cdp_url": "http://127.0.0.1:43111"}
         )
         cli = _fake_cli(tmp_path, "cat\n")
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         result = json.loads(bu_cli.browser_exec("print('payload')", session="r7k2"))
         assert result["success"] is True
         assert "_hermes_ensure_own_tab" not in result["output"]
@@ -1196,7 +1197,7 @@ class TestTimeoutProcessGroupKill:
             "echo $! > \"" + str(pid_file) + "\"\n"
             "sleep 60\n"
         ))
-        monkeypatch.setattr(bu_cli, "_find_cli", lambda: [cli])
+        monkeypatch.setattr(bu_cli, "_find_cli", lambda: cli)
         monkeypatch.setattr(bu_cli, "_MIN_TIMEOUT_S", 1)
 
         start = time.time()

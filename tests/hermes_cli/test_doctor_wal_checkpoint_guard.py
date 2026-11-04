@@ -59,7 +59,7 @@ def test_session_count_reads_a_home_with_uri_reserved_characters(tmp_path):
 
     from hermes_cli.doctor_state import _session_count
 
-    home = tmp_path / "profile?blue#x"
+    home = tmp_path / "profile%blue#x"
     home.mkdir()
     db = home / "state.db"
     conn = sqlite3.connect(db)

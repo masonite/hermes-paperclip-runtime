@@ -49,8 +49,8 @@ def test_run_probes_sanitizes_env_before_any_worker_builds_a_client(clash_env, m
 
 
 def test_run_probes_leaves_a_clean_environment_untouched(clash_env, monkeypatch):
-    monkeypatch.setenv("NO_PROXY", "example.com,10.0.0.0/8")
     monkeypatch.delenv("no_proxy", raising=False)
+    monkeypatch.setenv("NO_PROXY", "example.com,10.0.0.0/8")
     (result,) = dc.run_probes([("stand-in", lambda: dc._row("stand-in", "ok"))])
     assert "✓" in result.lines[0][0]
     import os

@@ -16,6 +16,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from gateway.platforms.event import ProcessingOutcome
+from tests.gateway.feishu_helpers import _FakeRequestContent
 
 
 if TYPE_CHECKING:
@@ -27,16 +28,9 @@ try:
 except ImportError:
     _HAS_LARK_OAPI = False
 
-class _FakeRequestContent:
-    def __init__(self, body: bytes):
-        self.body = body
-        self.read_sizes: list[int] = []
-
-    async def readexactly(self, size: int) -> bytes:
-        self.read_sizes.append(size)
-        if len(self.body) < size:
-            raise asyncio.IncompleteReadError(self.body, size)
-        return self.body[:size]
+@pytest.fixture(autouse=True)
+def isolated_home(tmp_path, monkeypatch):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
 def _mock_event_dispatcher_builder(mock_handler_class):
     mock_builder = Mock()

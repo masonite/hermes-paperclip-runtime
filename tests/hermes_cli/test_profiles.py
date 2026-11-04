@@ -153,7 +153,7 @@ class TestCreateProfile:
             for line in content.splitlines()
         )
         mode = stat.S_IMODE(env_path.stat().st_mode)
-        assert mode == 0o600
+        assert os.name != "posix" or mode == 0o600
 
 
     def test_fresh_profile_inherits_a_usable_model(self, profile_env):
@@ -339,45 +339,24 @@ class TestCreateProfile:
         (default_home / "config.yaml").write_text(f"model: test\nskills:\n  external_dirs:\n    - {external}\n", encoding="utf-8")
         return default_home, external
 
-    @pytest.mark.parametrize("clone_kwargs", [{"clone_config": True}, {"clone_all": True}])
-    def test_clone_recreates_skill_junctions_and_skips_dangling_ones(self, profile_env, monkeypatch, clone_kwargs):
-        """A junctioned skill stays a link (one candidate with its external original), a dangling
-        junction is skipped without failing the clone. The reparse-point predicate and CreateJunction
-        are Windows-only; simulate both so the copy/re-create contract runs on every host."""
-        default_home, external = self._home_with_linked_skill(profile_env)
-        # copytree sees plain directories (what a junction looks like to os.stat on Windows).
-        (default_home / "skills" / "foo").mkdir()
-        (default_home / "skills" / "foo" / "SKILL.md").write_text("# a physical copy would come from here\n", encoding="utf-8")
-        (default_home / "skills" / "gone").mkdir()
-        targets = {str(default_home / "skills" / "foo"): str(external / "foo"),
-                   str(default_home / "skills" / "gone"): str(profile_env / "nowhere")}
-        monkeypatch.setattr(profiles, "_junction_target", lambda path: targets.get(path), raising=False)
-
-        def _create_junction(target, dst):
-            if not os.path.isdir(target):
-                raise OSError("target missing")  # what _winapi.CreateJunction does for a dangling junction
-            os.symlink(target, dst, target_is_directory=True)
-        monkeypatch.setitem(sys.modules, "_winapi", types.SimpleNamespace(CreateJunction=_create_junction))
-
-        clone = create_profile("clone", no_alias=True, **clone_kwargs)
-        foo = clone / "skills" / "foo"
-        assert foo.is_symlink() and foo.resolve() == (external / "foo").resolve()
-        assert (foo / "SKILL.md").read_text(encoding="utf-8-sig") == "# external foo\n"
-        assert (clone / "skills" / "local" / "SKILL.md").is_file()
-        assert not (clone / "skills" / "gone").exists()
-        from tools.skills_tool import _collect_skill_candidates
-        assert len(_collect_skill_candidates("foo", None, [clone / "skills", external])) == 1
-
     @pytest.mark.platforms("windows")
-    def test_clone_keeps_real_ntfs_junction(self, profile_env):
+    @pytest.mark.parametrize("clone_kwargs", [{"clone_config": True}, {"clone_all": True}])
+    def test_clone_keeps_real_ntfs_junction(self, profile_env, clone_kwargs):
         import _winapi
         default_home, external = self._home_with_linked_skill(profile_env)
         _winapi.CreateJunction(str(external / "foo"), str(default_home / "skills" / "foo"))
+        gone = profile_env / "nowhere"
+        gone.mkdir()
+        _winapi.CreateJunction(str(gone), str(default_home / "skills" / "gone"))
+        gone.rmdir()
 
-        clone = create_profile("clone", clone_config=True, no_alias=True)
+        clone = create_profile("clone", no_alias=True, **clone_kwargs)
         foo = clone / "skills" / "foo"
         assert os.lstat(foo).st_reparse_tag == profiles.stat.IO_REPARSE_TAG_MOUNT_POINT
         assert foo.resolve() == (external / "foo").resolve()
+        assert (foo / "SKILL.md").read_text(encoding="utf-8-sig") == "# external foo\n"
+        assert (clone / "skills" / "local" / "SKILL.md").is_file()
+        assert not (clone / "skills" / "gone").exists()
         from tools.skills_tool import _collect_skill_candidates
         assert len(_collect_skill_candidates("foo", None, [clone / "skills", external])) == 1
 
@@ -517,7 +496,7 @@ class TestBackfillProfileEnvs:
         assert sorted(backfilled) == ["old1", "old2"]
         for p in (p1, p2):
             assert (p / ".env").read_text(encoding="utf-8-sig") == "OPENROUTER_API_KEY=root-key\n"
-            assert stat.S_IMODE((p / ".env").stat().st_mode) == 0o600
+            assert os.name != "posix" or stat.S_IMODE((p / ".env").stat().st_mode) == 0o600
 
 
     def test_placeholder_when_default_has_no_env(self, profile_env):
@@ -1049,6 +1028,7 @@ class TestAliasCollision:
 class TestWrapperScript:
     """Tests for create_wrapper_script() and remove_wrapper_script()."""
 
+    @pytest.mark.platforms("posix")
     def test_creates_sh_on_posix(self, profile_env, monkeypatch):
         monkeypatch.setattr("hermes_cli.profiles.shutil.which", lambda name: "/opt/hermes/bin/hermes")
         from hermes_cli.profiles import create_wrapper_script
@@ -1134,7 +1114,7 @@ class TestFindAliasForProfile:
         info = next(p for p in list_profiles() if p.name == "steve")
         assert info.alias_name == "qiaobusi"
         assert info.alias_path is not None
-        assert info.alias_path.name == "qiaobusi"
+        assert info.alias_path.name == ("qiaobusi.bat" if os.name == "nt" else "qiaobusi")
 
 
 # ===================================================================
@@ -1410,6 +1390,7 @@ class TestExportImport:
         assert "default/memories/MEMORY.md" in names
 
 
+    @pytest.mark.require_symlinks
     def test_export_default_handles_broken_symlinks(self, profile_env, tmp_path):
         """Broken symlinks inside allowed artifacts are preserved, not crashed (#58394).
 
@@ -1568,6 +1549,7 @@ class TestWriteProfileMetaDurability:
         assert "🧙" in raw
         assert profiles.read_profile_meta(profile_dir)["description"] == "Code wizard 🧙 ✨"
 
+    @pytest.mark.require_symlinks
     def test_symlinked_profile_yaml_survives_the_write(self, tmp_path):
         """Guard on the conversion, not a behavior change.
 
